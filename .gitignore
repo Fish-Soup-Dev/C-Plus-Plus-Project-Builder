@@ -1,0 +1,5 @@
+/.vscode
+/bin
+/build.toml
+/cbp.exe
+/obj
