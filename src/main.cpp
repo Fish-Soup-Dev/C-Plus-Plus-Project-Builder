@@ -8,10 +8,13 @@
 #include <ctime>
 #include <map>
 #include <windows.h>
+#include <unistd.h>
 
 #include "toml11/toml.hpp"
 
 #include "color.hpp"
+
+#define VERSION "0.1.0"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath) {
     HANDLE hFile = CreateFileW(
@@ -53,37 +56,9 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& file
     }
 }
 
-int main(int argc, char *argv[])
+void build(std::string file, std::string option)
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();
-    std::filesystem::path buildFile;
-
-    for (const auto& entry : std::filesystem::directory_iterator(currentPath))
-    {
-        if (!entry.is_directory()  && entry.path().filename().string() == "build.toml")
-        {
-            buildFile = entry.path();
-            break;
-        }
-    }
-
-    if (buildFile.empty())
-    {
-        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    if (argc > 1)
-    {
-        std::string arg = argv[1];
-        if (arg != "debug" && arg != "release")
-        {
-            std::cout << color(Red) <<"Invalad arg: " << argv[1] << color(Defult) << std::endl;
-            return EXIT_FAILURE;
-        }
-    }
-
-    auto data = toml::parse(buildFile.string(), toml::spec::v(1,1,0));
+    auto data = toml::parse(file, toml::spec::v(1,1,0));
 
     std::string name = toml::find<std::string>(data, "project", "name");
     std::string type = toml::find<std::string>(data, "project", "type");
@@ -98,8 +73,7 @@ int main(int argc, char *argv[])
     std::vector<std::string> cdefs;
     std::vector<std::string> cflags;
 
-    std::string arg = argv[1];
-    if (arg == "release")
+    if (option == "release")
     {
         cdefs = toml::find<std::vector<std::string>>(data, "compiler", "release", "cdefs");
         cflags = toml::find<std::vector<std::string>>(data, "compiler", "release", "cflags");
@@ -120,36 +94,36 @@ int main(int argc, char *argv[])
 
     if (!std::filesystem::exists(srcPath))
     {
-        std::cout << color(Red) << "[src] " << srcPath << " directory not found" << color(Defult) << std::endl;
-        return EXIT_FAILURE;
+        std::cout << color(Red) << srcPath << " directory not found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     if (!std::filesystem::exists(includePath))
     {
-        std::cout << color(Red) << "[include] " << includePath << " directory not found" << color(Defult) << std::endl;
-        return EXIT_FAILURE;
+        std::cout << color(Red) << includePath << " directory not found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     if (!std::filesystem::exists(libPath))
     {
-        std::cout << color(Red) << "[lib] " << libPath << " directory not found" << color(Defult) << std::endl;
-        return EXIT_FAILURE;
+        std::cout << color(Red) << libPath << " directory not found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     if (!std::filesystem::exists(binPath))
     {
-        std::cout << "[bin] " << binPath << " directory not found" << std::endl;
+        std::cout << binPath << " directory not found" << std::endl;
         std::filesystem::create_directories(binPath);
-        std::cout << "[bin] " << binPath << " created" << std::endl;
+        std::cout << binPath << " created" << std::endl;
     }
 
     std::map<std::string, std::chrono::_V2::system_clock::time_point> objTime;
 
     if (!std::filesystem::exists(objPath))
     {
-        std::cout << "[obj] " << objPath << " directory not found" << std::endl;
+        std::cout << objPath << " directory not found" << std::endl;
         std::filesystem::create_directories(objPath);
-        std::cout << "[obj] " << objPath << " created" << std::endl;
+        std::cout << objPath << " created" << std::endl;
 
     }
     else // get when obj files where edited
@@ -209,7 +183,7 @@ int main(int argc, char *argv[])
     }
 
     bool anyFilesBuilt = false;
-    std::cout << color(Green) << "Starting build " << argv[1] << "..." << color(Defult) << std::endl;
+    std::cout << color(Green) << "Starting build " << option << "..." << color(Defult) << std::endl;
     auto buildStart = std::chrono::high_resolution_clock::now();
 
     if (objTime.size())
@@ -320,6 +294,66 @@ int main(int argc, char *argv[])
     {
         std::cout << color(Blue) << "No new changes detected" << color(Defult) << std::endl;
     }
+}
+
+std::filesystem::path findBuildFile(std::filesystem::path currentPath)
+{
+    std::filesystem::path buildFile;
+
+    for (const auto& entry : std::filesystem::directory_iterator(currentPath))
+    {
+        if (!entry.is_directory()  && entry.path().filename().string() == "build.toml")
+        {
+            buildFile = entry.path();
+            break;
+        }
+    }
+
+    return buildFile;
+}
+
+int main(int argc, char *argv[])
+{
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path buildFile = findBuildFile(currentPath);
+
+    if (buildFile.empty())
+    {
+        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
+        return EXIT_FAILURE;
+    }
     
+    if (argc < 2)
+    {
+        build(buildFile.string(), "debug");
+        return EXIT_SUCCESS;
+    }
+
+    int opt;
+    while ((opt = getopt(argc, argv, "vb:")) != -1)
+    {
+        switch (opt)
+        {
+            case 'v':
+                std::cout << VERSION << std::endl;
+                break;
+            case 'b': {
+                std::string buildType = optarg;
+
+                if (buildType != "release" && buildType != "debug")
+                {
+                    std::cerr << color(Red) << "Unknown build arg " << optarg << color(Defult) << std::endl;
+                    return EXIT_FAILURE;
+                }
+
+                build(buildFile.string(), optarg);
+                break;
+            }
+            default:
+                std::cerr << color(Red) << "Unknown option" << color(Defult) << std::endl;
+                return EXIT_FAILURE;
+        }
+    }
+
     return EXIT_SUCCESS;
 }
