@@ -1,0 +1,23 @@
+[project]
+name = "app"
+type = "executable"
+
+[compiler]
+cc = "g++"
+ldflags = []
+libs = []
+
+[compiler.release]
+cflags = ["-std=c++20", "-O2"]
+cdefs = ["-DNDEBUG"]
+
+[compiler.debug]
+cflags = ["-std=c++20", "-g", "-Wall"]
+cdefs = ["-DDEBUG"]
+
+[paths]
+src = "./src"
+include = "./include"
+lib = "./lib"
+bin = "./bin"
+obj = "./obj"
