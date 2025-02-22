@@ -11,6 +11,8 @@
 
 #include "toml11/toml.hpp"
 
+#include "color.hpp"
+
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath) {
     HANDLE hFile = CreateFileW(
         filePath.c_str(),          // File path
@@ -67,15 +69,16 @@ int main(int argc, char *argv[])
 
     if (buildFile.empty())
     {
-        std::cout << "No build.toml found" << std::endl;
+        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
         return EXIT_FAILURE;
     }
 
     if (argc > 1)
     {
-        if (std::string(argv[1]) != "debug" && std::string(argv[1]) != "release")
+        std::string arg = argv[1];
+        if (arg != "debug" && arg != "release")
         {
-            std::cout <<"Invalad arg: " << argv[1] << std::endl;
+            std::cout << color(Red) <<"Invalad arg: " << argv[1] << color(Defult) << std::endl;
             return EXIT_FAILURE;
         }
     }
@@ -117,19 +120,19 @@ int main(int argc, char *argv[])
 
     if (!std::filesystem::exists(srcPath))
     {
-        std::cout << "[src] " << srcPath << " directory not found" << std::endl;
+        std::cout << color(Red) << "[src] " << srcPath << " directory not found" << color(Defult) << std::endl;
         return EXIT_FAILURE;
     }
 
     if (!std::filesystem::exists(includePath))
     {
-        std::cout << "[include] " << includePath << " directory not found" << std::endl;
+        std::cout << color(Red) << "[include] " << includePath << " directory not found" << color(Defult) << std::endl;
         return EXIT_FAILURE;
     }
 
     if (!std::filesystem::exists(libPath))
     {
-        std::cout << "[lib] " << libPath << " directory not found" << std::endl;
+        std::cout << color(Red) << "[lib] " << libPath << " directory not found" << color(Defult) << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -137,7 +140,7 @@ int main(int argc, char *argv[])
     {
         std::cout << "[bin] " << binPath << " directory not found" << std::endl;
         std::filesystem::create_directories(binPath);
-        std::cout << "bin path created" << std::endl;
+        std::cout << "[bin] " << binPath << " created" << std::endl;
     }
 
     std::map<std::string, std::chrono::_V2::system_clock::time_point> objTime;
@@ -146,7 +149,8 @@ int main(int argc, char *argv[])
     {
         std::cout << "[obj] " << objPath << " directory not found" << std::endl;
         std::filesystem::create_directories(objPath);
-        std::cout << "obj path created" << std::endl;
+        std::cout << "[obj] " << objPath << " created" << std::endl;
+
     }
     else // get when obj files where edited
     {
@@ -205,7 +209,7 @@ int main(int argc, char *argv[])
     }
 
     bool anyFilesBuilt = false;
-    std::cout << "Starting build " << argv[1] << "..." << std::endl;
+    std::cout << color(Green) << "Starting build " << argv[1] << "..." << color(Defult) << std::endl;
     auto buildStart = std::chrono::high_resolution_clock::now();
 
     if (objTime.size())
@@ -233,9 +237,9 @@ int main(int argc, char *argv[])
             anyFilesBuilt = true;
 
             if (result == EXIT_SUCCESS)
-                std::cout << objFiles[i] << " rebuilt in " << duration.count() << "s" << std::endl;
+                std::cout << color(Green) << objFiles[i] << " rebuilt in " << duration.count() << "s" << color(Defult) << std::endl;
             else
-                std::cout << objFiles[i] << " Failed." << std::endl;
+                std::cout << color(Red) << objFiles[i] << " Failed." << color(Defult) << std::endl;
 
         }
     }
@@ -264,9 +268,9 @@ int main(int argc, char *argv[])
             anyFilesBuilt = true;
 
             if (result == EXIT_SUCCESS)
-                std::cout << objFiles[i] << " built in " << duration.count() << "s" << std::endl;
+                std::cout << color(Green) << objFiles[i] << " built in " << duration.count() << "s" << color(Defult) << std::endl;
             else
-                std::cout << objFiles[i] << " Failed." << std::endl;
+                std::cout << color(Red) << objFiles[i] << " Failed." << color(Defult) << std::endl;
 
         }
     }
@@ -302,19 +306,19 @@ int main(int argc, char *argv[])
         std::chrono::duration<double> duration = end - start;
 
         if (result == EXIT_SUCCESS)
-            std::cout << main << " built in " << duration.count() << "s" << std::endl;
+            std::cout << color(Green) << main << " built in " << duration.count() << "s" << color(Defult) << std::endl;
         else
-            std::cout << main << " Failed." << std::endl;
+            std::cout << color(Red) << main << " Failed." << color(Defult) << std::endl;
 
         auto buildEnd = std::chrono::high_resolution_clock::now();
 
         std::chrono::duration<double> buildDuration = buildEnd - buildStart;
     
-        std::cout << "Done in " << buildDuration.count() << "s" << std::endl;
+        std::cout << color(Green) << "Done in " << buildDuration.count() << "s" << color(Defult) << std::endl;
     }
     else
     {
-        std::cout << "No new changes detected" << std::endl;
+        std::cout << color(Blue) << "No new changes detected" << color(Defult) << std::endl;
     }
     
     return EXIT_SUCCESS;
