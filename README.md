@@ -4,5 +4,4 @@ Simple command-line tool for building c++ projects using a build.toml file. Curr
 ## Uesage
 Example Screenshot
 
-windows
 ![Screenshot](assets/screenshot1.png)
