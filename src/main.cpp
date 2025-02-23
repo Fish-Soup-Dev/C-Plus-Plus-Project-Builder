@@ -1,12 +1,12 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <cstdlib>
 #include <vector>
 #include <chrono>
 #include <ctime>
 #include <map>
+#include <iomanip>
 #include <windows.h>
 #include <unistd.h>
 
@@ -14,25 +14,22 @@
 
 #include "color.hpp"
 
-#define VERSION "0.1.0"
+#define VERSION "0.1.8"
 
-std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath) {
-    HANDLE hFile = CreateFileW(
-        filePath.c_str(),          // File path
-        GENERIC_READ,              // Access mode
-        FILE_SHARE_READ,           // Share mode
-        NULL,                      // Security attributes
-        OPEN_EXISTING,             // Open the file if it exists
-        FILE_ATTRIBUTE_NORMAL,     // File attributes
-        NULL);                     // Template file
+std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
+{
+    HANDLE hFile = CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-    if (hFile == INVALID_HANDLE_VALUE) {
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
         std::cerr << "Error opening file: " << GetLastError() << std::endl;
         return std::chrono::system_clock::time_point::min();  // Return a minimum time point
     }
 
     FILETIME creationTime, lastAccessTime, lastWriteTime;
-    if (GetFileTime(hFile, &creationTime, &lastAccessTime, &lastWriteTime)) {
+
+    if (GetFileTime(hFile, &creationTime, &lastAccessTime, &lastWriteTime))
+    {
         // Convert FILETIME to SYSTEMTIME
         SYSTEMTIME lastWriteSysTime;
         FileTimeToSystemTime(&lastWriteTime, &lastWriteSysTime);
@@ -49,23 +46,161 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& file
         std::time_t time = std::mktime(&tm);
         CloseHandle(hFile);
         return std::chrono::system_clock::from_time_t(time);
-    } else {
+    }
+    else
+    {
         std::cerr << "Error getting file times: " << GetLastError() << std::endl;
         CloseHandle(hFile);
         return std::chrono::system_clock::time_point::min();  // Return a minimum time point
     }
 }
 
+int compileObject(
+    const std::string cc, 
+    const std::vector<std::string> cflags, 
+    const std::vector<std::string> cdefs, 
+    const std::string objectFile, 
+    const std::string sourceFile, 
+    const std::string includePath
+)
+{
+    std::string command = cc;
+
+    for (const auto& cflag : cflags)
+        command.append(" " + cflag);
+
+    command.append(" -c -o " + objectFile + " " + sourceFile);
+
+    for (const auto& cdef : cdefs)
+        command.append(" " + cdef);
+
+    command.append(" -I" + includePath);
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    int result = std::system(command.c_str());
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration = end - start;
+
+    if (result == EXIT_SUCCESS)
+        std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Defult) << std::endl;
+    else
+    {
+        std::cout << color(Red) << objectFile << " Failed." << color(Defult) << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+int compileBinarry(
+    const std::string cc, 
+    const std::vector<std::string> cflags, 
+    const std::vector<std::string> cdefs, 
+    const std::vector<std::string> objFiles, 
+    const std::vector<std::string> libFiles, 
+    const std::vector<std::string> libs, 
+    const std::string main,
+    const std::string includePath,
+    const std::string libPath
+)
+{
+    std::string command = cc;
+
+    for (const auto& cflag : cflags)
+        command.append(" " + cflag);
+
+    command.append(" -o " + main);
+
+    for (const auto& obj : objFiles)
+        command.append(" " + obj);
+
+    command.append(" -I" + includePath);
+    command.append(" -L" + libPath);
+
+    for (const auto& lib : libFiles)
+        command.append(" " + lib);
+
+    for (const auto& cdef : cdefs)
+        command.append(" " + cdef);
+
+    for (const auto& lib : libs)
+        command.append(" " + lib);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    
+    int result = std::system(command.c_str());
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration = end - start;
+
+    if (result == EXIT_SUCCESS)
+        std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Defult) << std::endl;
+    else
+    {
+        std::cout << color(Red) << main << " Failed." << color(Defult) << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void clean(std::string file)
+{
+    auto data = toml::parse(file, toml::spec::v(1,1,0));
+
+    std::string binPath = toml::find<std::string>(data, "paths", "bin");
+    std::string objPath = toml::find<std::string>(data, "paths", "obj");
+
+    std::filesystem::remove_all(binPath);
+    std::filesystem::remove_all(objPath);
+
+    std::cout << color(Green) << "Project cleaned" << color(Defult) << std::endl;
+}
+
 void build(std::string file, std::string option)
 {
     auto data = toml::parse(file, toml::spec::v(1,1,0));
 
-    std::string name = toml::find<std::string>(data, "project", "name");
-    std::string type = toml::find<std::string>(data, "project", "type");
+    std::string name = toml::find_or<std::string>(data, "project", "name", "");
 
-    std::string cc = toml::find<std::string>(data, "compiler", "cc");
+    if (name.empty())
+    {
+        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string type = toml::find_or<std::string>(data, "project", "type", "");
+
+    if (type.empty())
+    {
+        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (type != "executable" && type != "dll")
+    {
+        std::cout << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string cc = toml::find_or<std::string>(data, "compiler", "cc", "");
+
+    if (cc.empty())
+    {
+        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // libs and flags
+
     std::vector<std::string> ldflags = toml::find<std::vector<std::string>>(data, "compiler", "ldflags");
     std::vector<std::string> libs = toml::find<std::vector<std::string>>(data, "compiler", "libs");
+
+    // object and bin paths
 
     std::string binPath = toml::find<std::string>(data, "paths", "bin");
     std::string objPath = toml::find<std::string>(data, "paths", "obj");
@@ -80,7 +215,7 @@ void build(std::string file, std::string option)
         binPath += "/RELEASE";
         objPath += "/RELEASE";
     }
-    else
+    else // debug
     {
         cdefs = toml::find<std::vector<std::string>>(data, "compiler", "debug", "cdefs");
         cflags = toml::find<std::vector<std::string>>(data, "compiler", "debug", "cflags");
@@ -88,43 +223,18 @@ void build(std::string file, std::string option)
         objPath += "/DEBUG";
     }
 
-    std::string srcPath = toml::find<std::string>(data, "paths", "src");
-    std::string includePath = toml::find<std::string>(data, "paths", "include");
-    std::string libPath = toml::find<std::string>(data, "paths", "lib");
-
-    if (!std::filesystem::exists(srcPath))
-    {
-        std::cout << color(Red) << srcPath << " directory not found" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    if (!std::filesystem::exists(includePath))
-    {
-        std::cout << color(Red) << includePath << " directory not found" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    if (!std::filesystem::exists(libPath))
-    {
-        std::cout << color(Red) << libPath << " directory not found" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
     if (!std::filesystem::exists(binPath))
     {
-        std::cout << binPath << " directory not found" << std::endl;
+        std::cout << color(Gray) << binPath << " directory not found. Creating..." << color(Defult) << std::endl;
         std::filesystem::create_directories(binPath);
-        std::cout << binPath << " created" << std::endl;
     }
-
+    
     std::map<std::string, std::chrono::_V2::system_clock::time_point> objTime;
 
     if (!std::filesystem::exists(objPath))
     {
-        std::cout << objPath << " directory not found" << std::endl;
+        std::cout << color(Gray) << objPath << " directory not found. Creating..." << color(Defult) << std::endl;
         std::filesystem::create_directories(objPath);
-        std::cout << objPath << " created" << std::endl;
-
     }
     else // get when obj files where edited
     {
@@ -137,162 +247,132 @@ void build(std::string file, std::string option)
         }
     }
 
-    std::string main = binPath + "/" + name + (type == "executable" ? ".exe" : ".dll");
+    // source path
 
-    // get cpp files and obj files and lib files
-    std::vector<std::string> cppFiles;
-    std::vector<std::string> objFiles;
-    std::vector<std::string> libFiles;
+    std::string srcPath = toml::find<std::string>(data, "paths", "src");
 
     std::map<std::string, std::chrono::_V2::system_clock::time_point> srcTime;
 
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath))
-    {
-        if (!entry.is_directory() && entry.path().extension() == ".cpp")
-        {
-            cppFiles.push_back(srcPath + "/" + entry.path().filename().string());
-            objFiles.push_back(objPath + "/" + entry.path().stem().string() + ".o");
+    std::vector<std::string> cppFiles;
+    std::vector<std::string> objFiles;
 
-            srcTime[entry.path().stem().string()] = fileLastWriteTime(entry.path());
+    if (!std::filesystem::exists(srcPath))
+    {
+        std::cout << color(Red) << srcPath << " directory not found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath))
+        {
+            if (!entry.is_directory() && entry.path().extension() == ".cpp")
+            {
+                cppFiles.push_back(entry.path().string());
+                objFiles.push_back(objPath + "/" + entry.path().stem().string() + ".o");
+                srcTime[entry.path().stem().string()] = fileLastWriteTime(entry.path());
+            }
         }
     }
+
+    // include path
+
+    std::string includePath = toml::find<std::string>(data, "paths", "include");
+
+    if (!std::filesystem::exists(includePath))
+    {
+        std::cout << color(Red) << includePath << " directory not found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // lib path and files
+
+    std::string libPath = toml::find<std::string>(data, "paths", "lib");
+
+    if (!std::filesystem::exists(libPath))
+    {
+        std::cout << color(Red) << libPath << " directory not found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::vector<std::string> libFiles;
 
     for (const auto& entry : std::filesystem::recursive_directory_iterator(libPath))
         if (!entry.is_directory() && entry.path().extension() == ".a")
             libFiles.push_back(libPath + "/" + entry.path().filename().string());
 
+    std::string main = binPath + "/" + name + (type == "executable" ? ".exe" : ".dll");
+
     std::vector<std::string> filesToRecompile;
     std::vector<std::string> filesToRecompile2;
 
-    if (objTime.size())
+    if (!cppFiles.empty())
     {
-        for (const auto& [fileName, objTimePoint] : objTime)
+        for (size_t i = 0; i < cppFiles.size(); i++)
         {
-            auto cppTimePointIt = srcTime.find(fileName);
+            std::string fileName = std::filesystem::path(cppFiles[i]).stem().string();
+            auto cppTimePoint = srcTime[fileName];
+            bool objFound = false;
 
-            if (cppTimePointIt != srcTime.end())
+            // Check if the corresponding object file exists
+            auto objIt = objTime.find(fileName);
+            if (objIt != objTime.end())
             {
-                auto cppTimePoint = cppTimePointIt->second;
+                auto objTimePoint = objIt->second;
                 if (cppTimePoint > objTimePoint)
                 {
-                    filesToRecompile.push_back(srcPath + "/" + fileName + ".cpp");
-                    filesToRecompile2.push_back(objPath + "/" + fileName + ".o");
+                    filesToRecompile.push_back(cppFiles[i]);
+                    filesToRecompile2.push_back(objFiles[i]);
                 }
+                objFound = true;
             }
-        }
-    }
 
-    bool anyFilesBuilt = false;
-    std::cout << color(Green) << "Starting build " << option << "..." << color(Defult) << std::endl;
-    auto buildStart = std::chrono::high_resolution_clock::now();
-
-    if (objTime.size())
-    {
-        for (size_t i = 0; i < filesToRecompile2.size(); i++)
-        {
-            std::string command = cc;
-
-            for (const auto& cflag : cflags)
-                command.append(" " + cflag);
-
-            command.append(" -c -o " + filesToRecompile2[i] + " " + filesToRecompile[i]);
-
-            for (const auto& cdef : cdefs)
-                command.append(" " + cdef);
-
-            command.append(" -I" + includePath);
-
-            auto start = std::chrono::high_resolution_clock::now();
-            int result = std::system(command.c_str());
-            auto end = std::chrono::high_resolution_clock::now();
-
-            std::chrono::duration<double> duration = end - start;
-
-            anyFilesBuilt = true;
-
-            if (result == EXIT_SUCCESS)
-                std::cout << color(Green) << objFiles[i] << " rebuilt in " << duration.count() << "s" << color(Defult) << std::endl;
-            else
-                std::cout << color(Red) << objFiles[i] << " Failed." << color(Defult) << std::endl;
-
+            if (!objFound)
+            {
+                filesToRecompile.push_back(cppFiles[i]);
+                filesToRecompile2.push_back(objFiles[i]);
+            }
         }
     }
     else
     {
-        for (size_t i = 0; i < objFiles.size(); i++)
+        std::cout << color(Red) << "No C++ source files found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    bool anyFilesBuilt = false;
+
+    auto buildStart = std::chrono::high_resolution_clock::now();
+
+    if (!filesToRecompile.empty())
+    {
+        std::cout << "Starting build " << option << "..." << std::endl;
+
+        for (size_t i = 0; i < filesToRecompile.size(); i++)
         {
-            std::string command = cc;
-
-            for (const auto& cflag : cflags)
-                command.append(" " + cflag);
-
-            command.append(" -c -o " + objFiles[i] + " " + cppFiles[i]);
-
-            for (const auto& cdef : cdefs)
-                command.append(" " + cdef);
-
-            command.append(" -I" + includePath);
-
-            auto start = std::chrono::high_resolution_clock::now();
-            int result = std::system(command.c_str());
-            auto end = std::chrono::high_resolution_clock::now();
-
-            std::chrono::duration<double> duration = end - start;
-
+            if (!compileObject(cc, cflags, cdefs, filesToRecompile2[i], filesToRecompile[i], includePath))
+            {
+                std::cout << color(Red) << "Error" << color(Defult) << std::endl;
+                exit(EXIT_FAILURE);
+            }
             anyFilesBuilt = true;
-
-            if (result == EXIT_SUCCESS)
-                std::cout << color(Green) << objFiles[i] << " built in " << duration.count() << "s" << color(Defult) << std::endl;
-            else
-                std::cout << color(Red) << objFiles[i] << " Failed." << color(Defult) << std::endl;
-
         }
+    }
+    else
+    {
+        std::cout << color(Gray) << "No new changes detected" << color(Defult) << std::endl;
     }
 
     if (anyFilesBuilt)
     {
-        std::string command = cc;
-
-        for (const auto& cflag : cflags)
-            command.append(" " + cflag);
-
-        command.append(" -o " + main);
-
-        for (const auto& obj : objFiles)
-            command.append(" " + obj);
-
-        command.append(" -I" + includePath);
-        command.append(" -L" + libPath);
-
-        for (const auto& lib : libFiles)
-            command.append(" " + lib);
-
-        for (const auto& cdef : cdefs)
-            command.append(" " + cdef);
-
-        for (const auto& lib : libs)
-            command.append(" " + lib);
-
-        auto start = std::chrono::high_resolution_clock::now();
-        int result = std::system(command.c_str());
-        auto end = std::chrono::high_resolution_clock::now();
-
-        std::chrono::duration<double> duration = end - start;
-
-        if (result == EXIT_SUCCESS)
-            std::cout << color(Green) << main << " built in " << duration.count() << "s" << color(Defult) << std::endl;
-        else
-            std::cout << color(Red) << main << " Failed." << color(Defult) << std::endl;
+        if (!compileBinarry(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
+        {
+            std::cout << color(Red) << "Error" << color(Defult) << std::endl;
+            exit(EXIT_FAILURE);
+        }
 
         auto buildEnd = std::chrono::high_resolution_clock::now();
-
         std::chrono::duration<double> buildDuration = buildEnd - buildStart;
-    
         std::cout << color(Green) << "Done in " << buildDuration.count() << "s" << color(Defult) << std::endl;
-    }
-    else
-    {
-        std::cout << color(Blue) << "No new changes detected" << color(Defult) << std::endl;
     }
 }
 
@@ -330,12 +410,18 @@ int main(int argc, char *argv[])
     }
 
     int opt;
-    while ((opt = getopt(argc, argv, "vb:")) != -1)
+    while ((opt = getopt(argc, argv, "hvcb:")) != -1)
     {
         switch (opt)
         {
+            case 'h':
+                std::cout << " -v for version \n -b to specfiy a build option (release, debug) \n -c for cleaning obj and bin folders \n -h for help" << std::endl;
+                break;
             case 'v':
                 std::cout << VERSION << std::endl;
+                break;
+            case 'c':
+                clean(buildFile.string());
                 break;
             case 'b': {
                 std::string buildType = optarg;
@@ -350,7 +436,7 @@ int main(int argc, char *argv[])
                 break;
             }
             default:
-                std::cerr << color(Red) << "Unknown option" << color(Defult) << std::endl;
+                std::cerr << color(Red) << "Unknown option. Try -h" << color(Defult) << std::endl;
                 return EXIT_FAILURE;
         }
     }
