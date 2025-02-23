@@ -55,6 +55,22 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& file
     }
 }
 
+std::filesystem::path findBuildFile(std::filesystem::path currentPath)
+{
+    std::filesystem::path buildFile;
+
+    for (const auto& entry : std::filesystem::directory_iterator(currentPath))
+    {
+        if (!entry.is_directory()  && entry.path().filename().string() == "build.toml")
+        {
+            buildFile = entry.path();
+            break;
+        }
+    }
+
+    return buildFile;
+}
+
 int compileObject(
     const std::string cc, 
     const std::vector<std::string> cflags, 
@@ -392,22 +408,6 @@ void build(std::string option)
         std::chrono::duration<double> buildDuration = buildEnd - buildStart;
         std::cout << color(Green) << "Done in " << buildDuration.count() << "s" << color(Defult) << std::endl;
     }
-}
-
-std::filesystem::path findBuildFile(std::filesystem::path currentPath)
-{
-    std::filesystem::path buildFile;
-
-    for (const auto& entry : std::filesystem::directory_iterator(currentPath))
-    {
-        if (!entry.is_directory()  && entry.path().filename().string() == "build.toml")
-        {
-            buildFile = entry.path();
-            break;
-        }
-    }
-
-    return buildFile;
 }
 
 int main(int argc, char *argv[])
