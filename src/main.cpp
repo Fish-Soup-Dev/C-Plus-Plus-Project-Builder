@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.1.8"
+#define VERSION "0.1.9"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -148,8 +148,17 @@ int compileBinarry(
     return true;
 }
 
-void clean(std::string file)
+void clean()
 {
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path file = findBuildFile(currentPath);
+
+    if (file.empty())
+    {
+        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     auto data = toml::parse(file, toml::spec::v(1,1,0));
 
     std::string binPath = toml::find<std::string>(data, "paths", "bin");
@@ -161,8 +170,17 @@ void clean(std::string file)
     std::cout << color(Green) << "Project cleaned" << color(Defult) << std::endl;
 }
 
-void build(std::string file, std::string option)
+void build(std::string option)
 {
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path file = findBuildFile(currentPath);
+
+    if (file.empty())
+    {
+        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     auto data = toml::parse(file, toml::spec::v(1,1,0));
 
     std::string name = toml::find_or<std::string>(data, "project", "name", "");
@@ -394,18 +412,9 @@ std::filesystem::path findBuildFile(std::filesystem::path currentPath)
 
 int main(int argc, char *argv[])
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();
-    std::filesystem::path buildFile = findBuildFile(currentPath);
-
-    if (buildFile.empty())
-    {
-        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
-        return EXIT_FAILURE;
-    }
-    
     if (argc < 2)
     {
-        build(buildFile.string(), "debug");
+        build("debug");
         return EXIT_SUCCESS;
     }
 
@@ -421,7 +430,7 @@ int main(int argc, char *argv[])
                 std::cout << VERSION << std::endl;
                 break;
             case 'c':
-                clean(buildFile.string());
+                clean();
                 break;
             case 'b': {
                 std::string buildType = optarg;
@@ -432,7 +441,7 @@ int main(int argc, char *argv[])
                     return EXIT_FAILURE;
                 }
 
-                build(buildFile.string(), optarg);
+                build(optarg);
                 break;
             }
             default:
