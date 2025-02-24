@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.1.12"
+#define VERSION "0.2.0"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -335,6 +335,10 @@ void build(std::string option)
             libFiles.push_back(libPath + "/" + entry.path().filename().string());
 
     std::string main = binPath + "/" + name + (type == "executable" ? ".exe" : ".dll");
+    std::string main2 = binPath + "/" + name + "dll.lib";
+
+    if (type == "dll")
+        cflags.push_back("-Wl,--out-implib,"+ main2);
 
     std::vector<std::string> filesToRecompile;
     std::vector<std::string> filesToRecompile2;
