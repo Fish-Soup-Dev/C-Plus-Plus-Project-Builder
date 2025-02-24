@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.1.9"
+#define VERSION "0.1.12"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -391,12 +391,8 @@ void build(std::string option)
             anyFilesBuilt = true;
         }
     }
-    else
-    {
-        std::cout << color(Gray) << "No new changes detected" << color(Defult) << std::endl;
-    }
-
-    if (anyFilesBuilt)
+    
+    if (anyFilesBuilt || !std::filesystem::exists(main))
     {
         if (!compileBinarry(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
         {
@@ -404,9 +400,16 @@ void build(std::string option)
             exit(EXIT_FAILURE);
         }
 
+        anyFilesBuilt = true;
+
         auto buildEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> buildDuration = buildEnd - buildStart;
         std::cout << color(Green) << "Done in " << buildDuration.count() << "s" << color(Defult) << std::endl;
+    }
+
+    if (!anyFilesBuilt)
+    {
+        std::cout << color(Gray) << "No new changes detected" << color(Defult) << std::endl;
     }
 }
 
