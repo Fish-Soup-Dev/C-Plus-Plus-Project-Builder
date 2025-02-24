@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.2.0"
+#define VERSION "0.3.0"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -164,6 +164,37 @@ int compileBinarry(
     return true;
 }
 
+int archiveStatic(
+    const std::vector<std::string> objFiles, 
+    const std::string main
+)
+{
+    std::string command = "ar rcs ";
+
+    command.append(main);
+
+    for (const auto& obj : objFiles)
+        command.append(" " + obj);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    
+    int result = std::system(command.c_str());
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration = end - start;
+
+    if (result == EXIT_SUCCESS)
+        std::cout << color(Gray) << main << " packed in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Defult) << std::endl;
+    else
+    {
+        std::cout << color(Red) << main << " Failed." << color(Defult) << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 void clean()
 {
     std::filesystem::path currentPath = std::filesystem::current_path();
@@ -215,7 +246,7 @@ void build(std::string option)
         exit(EXIT_FAILURE);
     }
 
-    if (type != "executable" && type != "dll")
+    if (type != "executable" && type != "dll" && type != "lib")
     {
         std::cout << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
         exit(EXIT_FAILURE);
@@ -334,7 +365,15 @@ void build(std::string option)
         if (!entry.is_directory() && entry.path().extension() == ".a")
             libFiles.push_back(libPath + "/" + entry.path().filename().string());
 
-    std::string main = binPath + "/" + name + (type == "executable" ? ".exe" : ".dll");
+    std::string main = binPath + "/" + name;
+
+    if (type == "executable")
+        main += ".exe";
+    else if (type == "dll")
+        main += ".dll";
+    else
+        main += ".lib";
+
     std::string main2 = binPath + "/" + name + "dll.lib";
 
     if (type == "dll")
@@ -383,7 +422,7 @@ void build(std::string option)
 
     if (!filesToRecompile.empty())
     {
-        std::cout << "Starting build " << option << "..." << std::endl;
+        std::cout << "Starting build " << type << " " << option << "..." << std::endl;
 
         for (size_t i = 0; i < filesToRecompile.size(); i++)
         {
@@ -398,17 +437,28 @@ void build(std::string option)
     
     if (anyFilesBuilt || !std::filesystem::exists(main))
     {
-        if (!compileBinarry(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
+        if (type == "lib")
         {
-            std::cout << color(Red) << "Error" << color(Defult) << std::endl;
-            exit(EXIT_FAILURE);
+            if (!archiveStatic(objFiles, main))
+            {
+                std::cout << color(Red) << "Error" << color(Defult) << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else
+        {
+            if (!compileBinarry(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
+            {
+                std::cout << color(Red) << "Error" << color(Defult) << std::endl;
+                exit(EXIT_FAILURE);
+            }
         }
 
         anyFilesBuilt = true;
 
         auto buildEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> buildDuration = buildEnd - buildStart;
-        std::cout << color(Green) << "Done in " << buildDuration.count() << "s" << color(Defult) << std::endl;
+        std::cout << color(Green) << main << " done in " << buildDuration.count() << "s" << color(Defult) << std::endl;
     }
 
     if (!anyFilesBuilt)
