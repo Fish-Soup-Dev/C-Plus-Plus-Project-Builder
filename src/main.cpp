@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.3.1"
+#define VERSION "0.3.2"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -476,7 +476,7 @@ int main(int argc, char *argv[])
     }
 
     int opt;
-    while ((opt = getopt(argc, argv, "hvcrd:")) != -1)
+    while ((opt = getopt(argc, argv, "hvcrd")) != -1)
     {
         switch (opt)
         {
