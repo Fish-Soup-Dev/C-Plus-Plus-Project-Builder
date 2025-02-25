@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.3.0"
+#define VERSION "0.3.1"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -476,7 +476,7 @@ int main(int argc, char *argv[])
     }
 
     int opt;
-    while ((opt = getopt(argc, argv, "hvcb:")) != -1)
+    while ((opt = getopt(argc, argv, "hvcrd:")) != -1)
     {
         switch (opt)
         {
@@ -489,18 +489,12 @@ int main(int argc, char *argv[])
             case 'c':
                 clean();
                 break;
-            case 'b': {
-                std::string buildType = optarg;
-
-                if (buildType != "release" && buildType != "debug")
-                {
-                    std::cerr << color(Red) << "Unknown build arg " << optarg << color(Defult) << std::endl;
-                    return EXIT_FAILURE;
-                }
-
-                build(optarg);
+            case 'r':
+                build("release");
                 break;
-            }
+            case 'd':
+                build("debug");
+                break;
             default:
                 std::cerr << color(Red) << "Unknown option. Try -h" << color(Defult) << std::endl;
                 return EXIT_FAILURE;
