@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.3.2"
+#define VERSION "0.3.5"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -55,7 +55,7 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& file
     }
 }
 
-std::filesystem::path findBuildFile(std::filesystem::path currentPath)
+std::filesystem::path findBuildFile(const std::filesystem::path currentPath)
 {
     std::filesystem::path buildFile;
 
@@ -217,7 +217,59 @@ void clean()
     std::cout << color(Green) << "Project cleaned" << color(Defult) << std::endl;
 }
 
-void build(std::string option)
+void run(const std::string option)
+{
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path file = findBuildFile(currentPath);
+
+    if (file.empty())
+    {
+        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    auto data = toml::parse(file, toml::spec::v(1,1,0));
+
+    std::string name = toml::find_or<std::string>(data, "project", "name", "");
+
+    if (name.empty())
+    {
+        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string type = toml::find_or<std::string>(data, "project", "type", "");
+
+    if (type.empty())
+    {
+        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (type != "executable" && type != "dll" && type != "lib")
+    {
+        std::cout << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (type == "executable")
+    {
+        std::string temp;
+        if (option == "release")
+        {
+            temp = "RELEASE";
+        }
+        else
+        {
+            temp = "DEBUG";
+        }
+
+        std::string command = ".\\bin\\" + temp + "\\" + name + ".exe";
+        std::system(command.c_str());
+    }
+}
+
+void build(const std::string option)
 {
     std::filesystem::path currentPath = std::filesystem::current_path();
     std::filesystem::path file = findBuildFile(currentPath);
@@ -472,6 +524,7 @@ int main(int argc, char *argv[])
     if (argc < 2)
     {
         build("debug");
+        run("debug");
         return EXIT_SUCCESS;
     }
 
@@ -481,7 +534,7 @@ int main(int argc, char *argv[])
         switch (opt)
         {
             case 'h':
-                std::cout << " -v for version \n -b to specfiy a build option (release, debug) \n -c for cleaning obj and bin folders \n -h for help" << std::endl;
+                std::cout << " -v for version \n -r for build release \n -d for build debug \n -c for cleaning obj and bin folders \n -h for help" << std::endl;
                 break;
             case 'v':
                 std::cout << VERSION << std::endl;
