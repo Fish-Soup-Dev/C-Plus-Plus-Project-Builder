@@ -14,7 +14,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.3.5"
+#define VERSION "0.3.6"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
 {
@@ -529,12 +529,12 @@ int main(int argc, char *argv[])
     }
 
     int opt;
-    while ((opt = getopt(argc, argv, "hvcrd")) != -1)
+    while ((opt = getopt(argc, argv, "hvcrdzx")) != -1)
     {
         switch (opt)
         {
             case 'h':
-                std::cout << " -v for version \n -r for build release \n -d for build debug \n -c for cleaning obj and bin folders \n -h for help" << std::endl;
+                std::cout << " -v for version \n -r for build release \n -d for build debug \n -c for cleaning obj and bin folders \n -z for run dbug \n -x for run rele \n -h for help" << std::endl;
                 break;
             case 'v':
                 std::cout << VERSION << std::endl;
@@ -547,6 +547,12 @@ int main(int argc, char *argv[])
                 break;
             case 'd':
                 build("debug");
+                break;
+            case 'z':
+                run("debug");
+                break;
+            case 'x':
+                run("release");
                 break;
             default:
                 std::cerr << color(Red) << "Unknown option. Try -h" << color(Defult) << std::endl;
