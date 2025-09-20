@@ -7,52 +7,27 @@
 #include <ctime>
 #include <map>
 #include <iomanip>
-#include <windows.h>
+#include <string>
 #include <unistd.h>
 
 #include "toml11/toml.hpp"
 
 #include "color.hpp"
 
-#define VERSION "0.3.6"
+#define VERSION "0.3.7"
 
-std::chrono::system_clock::time_point fileLastWriteTime(const std::wstring& filePath)
-{
-    HANDLE hFile = CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    auto ftime = fs::last_write_time(fs::path(filePath), ec);
 
-    if (hFile == INVALID_HANDLE_VALUE)
-    {
-        std::cerr << "Error opening file: " << GetLastError() << std::endl;
-        return std::chrono::system_clock::time_point::min();  // Return a minimum time point
+    if (ec) {
+        std::cerr << "Error getting file time: " << ec.message() << std::endl;
+        return std::chrono::system_clock::time_point::min();
     }
 
-    FILETIME creationTime, lastAccessTime, lastWriteTime;
-
-    if (GetFileTime(hFile, &creationTime, &lastAccessTime, &lastWriteTime))
-    {
-        // Convert FILETIME to SYSTEMTIME
-        SYSTEMTIME lastWriteSysTime;
-        FileTimeToSystemTime(&lastWriteTime, &lastWriteSysTime);
-
-        // Convert SYSTEMTIME to system_clock::time_point
-        std::tm tm = {};
-        tm.tm_year = lastWriteSysTime.wYear - 1900;
-        tm.tm_mon = lastWriteSysTime.wMonth - 1;
-        tm.tm_mday = lastWriteSysTime.wDay;
-        tm.tm_hour = lastWriteSysTime.wHour;
-        tm.tm_min = lastWriteSysTime.wMinute;
-        tm.tm_sec = lastWriteSysTime.wSecond;
-
-        std::time_t time = std::mktime(&tm);
-        CloseHandle(hFile);
-        return std::chrono::system_clock::from_time_t(time);
-    }
-    else
-    {
-        std::cerr << "Error getting file times: " << GetLastError() << std::endl;
-        CloseHandle(hFile);
-        return std::chrono::system_clock::time_point::min();  // Return a minimum time point
-    }
+    // In C++20, we can use clock_cast for a portable conversion.
+    return std::chrono::clock_cast<std::chrono::system_clock>(ftime);
 }
 
 std::filesystem::path findBuildFile(const std::filesystem::path currentPath)
