@@ -16,7 +16,7 @@
 #include "color.hpp"
 #include "template_genorator.h"
 
-#define VERSION "0.4.5"
+#define VERSION "0.4.6"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath) {
     namespace fs = std::filesystem;
@@ -342,7 +342,7 @@ void build(const std::string option)
         {
             if (!entry.is_directory() && entry.path().extension() == ".o")
             {
-                objTime[entry.path().stem().string()] = fileLastWriteTime(entry.path());
+                objTime[entry.path().stem().string()] = fileLastWriteTime(entry.path().string());
             }
         }
     }
@@ -369,7 +369,7 @@ void build(const std::string option)
             {
                 cppFiles.push_back(entry.path().string());
                 objFiles.push_back(objPath + "/" + entry.path().stem().string() + ".o");
-                srcTime[entry.path().stem().string()] = fileLastWriteTime(entry.path());
+                srcTime[entry.path().stem().string()] = fileLastWriteTime(entry.path().string());
             }
         }
     }
