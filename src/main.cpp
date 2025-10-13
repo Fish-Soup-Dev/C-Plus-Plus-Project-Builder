@@ -9,12 +9,14 @@
 #include <iomanip>
 #include <string>
 #include <unistd.h>
+#include <tuple>
 
 #include "toml11/toml.hpp"
 
 #include "color.hpp"
+#include "template_genorator.h"
 
-#define VERSION "0.3.7"
+#define VERSION "0.4.5"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath) {
     namespace fs = std::filesystem;
@@ -232,15 +234,21 @@ void run(const std::string option)
         std::string temp;
         if (option == "release")
         {
-            temp = "RELEASE";
+            temp = "release";
         }
         else
         {
-            temp = "DEBUG";
+            temp = "debug";
         }
 
-        std::string command = ".\\bin\\" + temp + "\\" + name + ".exe";
-        std::system(command.c_str());
+        #ifdef _WIN32
+            std::string command = ".\\bin\\" + temp + "\\" + name + ".exe";
+
+        #elif __linux__
+            std::string command = "./bin/" + temp + "/" + name;
+        #endif
+
+        int result = std::system(command.c_str());
     }
 }
 
@@ -304,15 +312,15 @@ void build(const std::string option)
     {
         cdefs = toml::find<std::vector<std::string>>(data, "compiler", "release", "cdefs");
         cflags = toml::find<std::vector<std::string>>(data, "compiler", "release", "cflags");
-        binPath += "/RELEASE";
-        objPath += "/RELEASE";
+        binPath += "/release";
+        objPath += "/release";
     }
     else // debug
     {
         cdefs = toml::find<std::vector<std::string>>(data, "compiler", "debug", "cdefs");
         cflags = toml::find<std::vector<std::string>>(data, "compiler", "debug", "cflags");
-        binPath += "/DEBUG";
-        objPath += "/DEBUG";
+        binPath += "/debug";
+        objPath += "/debug";
     }
 
     if (!std::filesystem::exists(binPath))
@@ -394,14 +402,27 @@ void build(const std::string option)
 
     std::string main = binPath + "/" + name;
 
-    if (type == "executable")
-        main += ".exe";
-    else if (type == "dll")
-        main += ".dll";
-    else
-        main += ".lib";
+    #ifdef _WIN32
+        if (type == "executable")
+            main += ".exe";
+        else if (type == "dll")
+            main += ".dll";
+        else
+            main += ".lib";
 
-    std::string main2 = binPath + "/" + name + "dll.lib";
+        std::string main2 = binPath + "/" + name + "dll.lib";
+    #elif __linux__
+        if (type == "executable")
+            main; // do nothing
+        else if (type == "dll")
+            main += ".so";
+        else
+            main += ".a";
+
+        std::string main2 = binPath + "/" + name + "so.a";
+    #endif
+
+    
 
     if (type == "dll")
         cflags.push_back("-Wl,--out-implib,"+ main2);
@@ -494,45 +515,128 @@ void build(const std::string option)
     }
 }
 
+std::tuple<int, int, int> parseArguments(int count, char *argumentArray[], std::vector<std::string> options)
+{
+    int optionIndex = 0; // 0 = none / unknown, otherwise j+1 (matches options vector)
+    int release = 0;     // 0 = debug (default), 1 = release
+    int arch = 0;        // 0 = x64 (default), 1 = x32, 2 = arm64
+
+    bool anyFlagSeen = false;
+
+    for (int i = 1; i < count; ++i)
+    {
+        std::string arg = argumentArray[i];
+
+        // check main options
+        for (size_t j = 0; j < options.size(); ++j)
+        {
+            if (arg == options[j])
+            {
+                // keep first option seen (if you prefer last, remove the guard)
+                if (optionIndex == 0)
+                    optionIndex = static_cast<int>(j) + 1;
+            }
+        }
+
+        // release/debug flags
+        if (arg == "-r" || arg == "--release")
+        {
+            release = 1;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-d" || arg == "--debug")
+        {
+            release = 0;
+            anyFlagSeen = true;
+            continue;
+        }
+
+        // arch flags
+        if (arg == "-x64" || arg == "--x64")
+        {
+            arch = 0;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-x32" || arg == "--x32")
+        {
+            arch = 1;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-arm64" || arg == "--arm64")
+        {
+            arch = 2;
+            anyFlagSeen = true;
+            continue;
+        }
+    }
+
+    // If flags were provided but the selected option is not build(4) or run(5), error out.
+    if (anyFlagSeen && optionIndex != 4 && optionIndex != 5)
+    {
+        std::cerr << color(Red) << "Release/arch flags are only valid with 'build' or 'run'." << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return std::make_tuple(optionIndex, release, arch);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        build("debug");
-        run("debug");
-        return EXIT_SUCCESS;
+        std::cerr << color(Red) << "No option given. Try -h" << color(Defult) << std::endl;
+        return EXIT_FAILURE;
     }
 
-    int opt;
-    while ((opt = getopt(argc, argv, "hvcrdzx")) != -1)
+    std::vector<std::string> options = {"-h", "-v", "clean", "build", "run", "new"};
+
+    int arch = 0; // 0 = x64, 1 = x32, 2 = arm64
+    int release = 0; // 0 = debug, 1 = release
+    int option = 0;
+
+    std::tie(option, release, arch) = parseArguments(argc, argv, options);
+
+    switch (option)
     {
-        switch (opt)
-        {
-            case 'h':
-                std::cout << " -v for version \n -r for build release \n -d for build debug \n -c for cleaning obj and bin folders \n -z for run dbug \n -x for run rele \n -h for help" << std::endl;
-                break;
-            case 'v':
-                std::cout << VERSION << std::endl;
-                break;
-            case 'c':
-                clean();
-                break;
-            case 'r':
-                build("release");
-                break;
-            case 'd':
-                build("debug");
-                break;
-            case 'z':
-                run("debug");
-                break;
-            case 'x':
-                run("release");
-                break;
-            default:
-                std::cerr << color(Red) << "Unknown option. Try -h" << color(Defult) << std::endl;
-                return EXIT_FAILURE;
-        }
+        case 1:
+            std::cout << "-h - help menu" << std::endl;
+            std::cout << "-v - app version" << std::endl;
+            std::cout << "clean - removes all temp folders and files in project" << std::endl;
+            std::cout << "build - builds project" << std::endl;
+            std::cout << "run - runs project" << std::endl;
+            std::cout << "new - makes files for a new project" << std::endl;
+            break;
+
+        case 2:
+            #ifdef _WIN32
+                std::cout << VERSION << " Windows build" << std::endl;
+            #elif __linux__
+                std::cout << VERSION << " Linux build" << std::endl;
+            #endif
+            break;
+
+        case 3:
+            clean();
+            break;
+
+        case 4:
+            build(release ? "release" : "debug");
+            break;
+
+        case 5:
+            run(release ? "release" : "debug");
+            break;
+
+        case 6:
+            genorate();
+            break;
+
+        default:
+            std::cerr << color(Red) << "Unknown option. Try -h" << color(Defult) << std::endl;
+            return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
