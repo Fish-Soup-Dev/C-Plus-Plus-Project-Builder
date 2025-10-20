@@ -14,9 +14,10 @@
 #include "toml11/toml.hpp"
 
 #include "color.hpp"
-#include "template_genorator.h"
 
-#define VERSION "0.4.6"
+#define VERSION "0.4.9"
+
+#include "templateGenorator.h"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath) {
     namespace fs = std::filesystem;
@@ -281,7 +282,7 @@ void build(const std::string option)
         exit(EXIT_FAILURE);
     }
 
-    if (type != "executable" && type != "dll" && type != "lib")
+    if (type != "program" && type != "shared" && type != "static")
     {
         std::cout << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
         exit(EXIT_FAILURE);
@@ -403,18 +404,18 @@ void build(const std::string option)
     std::string main = binPath + "/" + name;
 
     #ifdef _WIN32
-        if (type == "executable")
+        if (type == "program")
             main += ".exe";
-        else if (type == "dll")
+        else if (type == "shared")
             main += ".dll";
         else
             main += ".lib";
 
         std::string main2 = binPath + "/" + name + "dll.lib";
     #elif __linux__
-        if (type == "executable")
+        if (type == "program")
             main; // do nothing
-        else if (type == "dll")
+        else if (type == "shared")
             main += ".so";
         else
             main += ".a";
@@ -424,7 +425,7 @@ void build(const std::string option)
 
     
 
-    if (type == "dll")
+    if (type == "shared")
         cflags.push_back("-Wl,--out-implib,"+ main2);
 
     std::vector<std::string> filesToRecompile;
@@ -631,7 +632,7 @@ int main(int argc, char *argv[])
             break;
 
         case 6:
-            genorate();
+            MakeProject();
             break;
 
         default:

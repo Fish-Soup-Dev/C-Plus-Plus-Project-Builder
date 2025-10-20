@@ -1,6 +1,6 @@
 [project]
-name = "app"
-type = "executable"
+name = "cpb"
+type = "program"
 
 [compiler]
 cc = "g++"
@@ -8,7 +8,7 @@ ldflags = []
 libs = []
 
 [compiler.release]
-cflags = ["-std=c++20", "-O2"]
+cflags = ["-std=c++20", "-O2", "-static"]
 cdefs = ["-DNDEBUG"]
 
 [compiler.debug]

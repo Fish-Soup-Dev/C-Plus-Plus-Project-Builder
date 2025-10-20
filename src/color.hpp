@@ -13,7 +13,7 @@ enum COLORS
     Defult = 0,
 };
 
-std::string color(enum COLORS color)
+std::string inline color(enum COLORS color)
 {
     return "\033[" + std::to_string(color) + "m";
 }
