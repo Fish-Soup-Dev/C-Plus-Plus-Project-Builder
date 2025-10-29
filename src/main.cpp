@@ -17,7 +17,7 @@
 
 #define VERSION "0.4.9"
 
-#include "templateGenorator.h"
+#include "templateGenorator.hpp"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath) {
     namespace fs = std::filesystem;

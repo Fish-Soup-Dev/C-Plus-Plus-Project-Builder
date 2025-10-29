@@ -1,4 +1,4 @@
-#include "templateGenorator.h"
+#include "templateGenorator.hpp"
 
 #include <iostream>
 #include <filesystem>
