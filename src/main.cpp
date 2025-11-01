@@ -1,3 +1,5 @@
+#define VERSION "0.5.0"
+
 #include <iostream>
 #include <filesystem>
 #include <cstdlib>
@@ -11,9 +13,6 @@
 #include <tuple>
 
 #include "color.hpp"
-
-#define VERSION "0.4.12"
-
 #include "templateGenorator.hpp"
 #include "buildFileLoader.hpp"
 
@@ -21,14 +20,15 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::string& fileP
 {
     namespace fs = std::filesystem;
     std::error_code ec;
+    
     auto ftime = fs::last_write_time(fs::path(filePath), ec);
 
-    if (ec) {
+    if (ec)
+    {
         std::cerr << "Error getting file time: " << ec.message() << std::endl;
         return std::chrono::system_clock::time_point::min();
     }
 
-    // In C++20, we can use clock_cast for a portable conversion.
     return std::chrono::clock_cast<std::chrono::system_clock>(ftime);
 }
 
@@ -56,7 +56,6 @@ int compileObject
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::cout << command.c_str() << std::endl;
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -64,7 +63,9 @@ int compileObject
     std::chrono::duration<double> duration = end - start;
 
     if (result == EXIT_SUCCESS)
+    {
         std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Defult) << std::endl;
+    }
     else
     {
         std::cout << color(Red) << objectFile << " Failed." << color(Defult) << std::endl;
@@ -111,7 +112,6 @@ int compileBinarry
 
     auto start = std::chrono::high_resolution_clock::now();
     
-    std::cout << command.c_str() << std::endl;
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -144,7 +144,6 @@ int archiveStatic
 
     auto start = std::chrono::high_resolution_clock::now();
     
-    std::cout << command.c_str() << std::endl;
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -169,7 +168,10 @@ void clean
 )
 {
     std::filesystem::remove_all(binPath);
+    std::cout << color(Gray) << "deleted " << binPath << color(Defult) << std::endl;
+
     std::filesystem::remove_all(objPath);
+    std::cout << color(Gray) << "deleted " << objPath << color(Defult) << std::endl;
 
     std::cout << color(Green) << "Project cleaned" << color(Defult) << std::endl;
 }
@@ -195,7 +197,7 @@ void run
     
     if (!std::system(command.c_str()))
     {
-        std::cerr << color(Red) << "Error with running program" << color(Defult)  << std::endl;
+        std::cerr << color(Red) << "Program returned an error" << color(Defult)  << std::endl;
         exit(EXIT_FAILURE);
     }
 }
