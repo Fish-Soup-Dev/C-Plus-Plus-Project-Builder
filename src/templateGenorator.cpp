@@ -100,7 +100,7 @@ int MakeProject()
 
             typeName = "program";
             cflagsR = "\"-O2\", \"-static\", \"" + versionName + "\"";
-            cflagsD = "\"-g\", \"-wall\", \"" + versionName + "\"";
+            cflagsD = "\"-g\", \"-Wall\", \"" + versionName + "\"";
             cdefsR = "\"-DNDEBUG\"";
             cdefsD = "\"-DDEBUG\"";
         }
@@ -121,7 +121,7 @@ int MakeProject()
 
             typeName = "shared";
             cflagsR = "\"-O2\", \"-shared\", \"" + versionName + "\"";
-            cflagsD = "\"-g\", \"-wall\", \"-shared\", \"" + versionName + "\"";
+            cflagsD = "\"-g\", \"-Wall\", \"-shared\", \"" + versionName + "\"";
             cdefsR = "\"-DNDEBUG\", \"-DBUILD_DLL\"";
             cdefsD = "\"-DDEBUG\", \"-DBUILD_DLL\"";
         }
@@ -142,7 +142,7 @@ int MakeProject()
 
             typeName = "static";
             cflagsR = "\"-O2\", \"" + versionName + "\"";
-            cflagsD = "\"-g\", \"-wall\", \"" + versionName + "\"";
+            cflagsD = "\"-g\", \"-Wall\", \"" + versionName + "\"";
             cdefsR = "\"-DNDEBUG\"";
             cdefsD = "\"-DDEBUG\"";
         }

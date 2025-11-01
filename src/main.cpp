@@ -15,7 +15,7 @@
 
 #include "color.hpp"
 
-#define VERSION "0.4.9"
+#define VERSION "0.4.10"
 
 #include "templateGenorator.hpp"
 
@@ -224,13 +224,13 @@ void run(const std::string option)
         exit(EXIT_FAILURE);
     }
 
-    if (type != "executable" && type != "dll" && type != "lib")
+    if (type != "program" && type != "shared" && type != "static")
     {
-        std::cout << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
+        std::cout << color(Red) << "build.toml project type is incorect" << color(Defult) << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    if (type == "executable")
+    if (type == "program")
     {
         std::string temp;
         if (option == "release")
