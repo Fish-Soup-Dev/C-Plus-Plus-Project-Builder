@@ -1,6 +1,5 @@
 #include <iostream>
 #include <filesystem>
-#include <fstream>
 #include <cstdlib>
 #include <vector>
 #include <chrono>
@@ -11,15 +10,15 @@
 #include <unistd.h>
 #include <tuple>
 
-#include "toml11/toml.hpp"
-
 #include "color.hpp"
 
-#define VERSION "0.4.10"
+#define VERSION "0.4.12"
 
 #include "templateGenorator.hpp"
+#include "buildFileLoader.hpp"
 
-std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath) {
+std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath)
+{
     namespace fs = std::filesystem;
     std::error_code ec;
     auto ftime = fs::last_write_time(fs::path(filePath), ec);
@@ -33,23 +32,8 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::string& fileP
     return std::chrono::clock_cast<std::chrono::system_clock>(ftime);
 }
 
-std::filesystem::path findBuildFile(const std::filesystem::path currentPath)
-{
-    std::filesystem::path buildFile;
-
-    for (const auto& entry : std::filesystem::directory_iterator(currentPath))
-    {
-        if (!entry.is_directory()  && entry.path().filename().string() == "build.toml")
-        {
-            buildFile = entry.path();
-            break;
-        }
-    }
-
-    return buildFile;
-}
-
-int compileObject(
+int compileObject
+(
     const std::string cc, 
     const std::vector<std::string> cflags, 
     const std::vector<std::string> cdefs, 
@@ -72,6 +56,7 @@ int compileObject(
 
     auto start = std::chrono::high_resolution_clock::now();
 
+    std::cout << command.c_str() << std::endl;
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -89,7 +74,8 @@ int compileObject(
     return true;
 }
 
-int compileBinarry(
+int compileBinarry
+(
     const std::string cc, 
     const std::vector<std::string> cflags, 
     const std::vector<std::string> cdefs, 
@@ -125,6 +111,7 @@ int compileBinarry(
 
     auto start = std::chrono::high_resolution_clock::now();
     
+    std::cout << command.c_str() << std::endl;
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -142,7 +129,8 @@ int compileBinarry(
     return true;
 }
 
-int archiveStatic(
+int archiveStatic
+(
     const std::vector<std::string> objFiles, 
     const std::string main
 )
@@ -156,6 +144,7 @@ int archiveStatic(
 
     auto start = std::chrono::high_resolution_clock::now();
     
+    std::cout << command.c_str() << std::endl;
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -173,153 +162,65 @@ int archiveStatic(
     return true;
 }
 
-void clean()
+void clean
+(
+    std::string binPath, 
+    std::string objPath
+)
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();
-    std::filesystem::path file = findBuildFile(currentPath);
-
-    if (file.empty())
-    {
-        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    auto data = toml::parse(file, toml::spec::v(1,1,0));
-
-    std::string binPath = toml::find<std::string>(data, "paths", "bin");
-    std::string objPath = toml::find<std::string>(data, "paths", "obj");
-
     std::filesystem::remove_all(binPath);
     std::filesystem::remove_all(objPath);
 
     std::cout << color(Green) << "Project cleaned" << color(Defult) << std::endl;
 }
 
-void run(const std::string option)
+void run
+(
+    const std::string option, 
+    const std::string name, 
+    const std::string type
+)
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();
-    std::filesystem::path file = findBuildFile(currentPath);
-
-    if (file.empty())
+    if (type != "program")
     {
-        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "Error can only run programs" << color(Defult) << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    auto data = toml::parse(file, toml::spec::v(1,1,0));
-
-    std::string name = toml::find_or<std::string>(data, "project", "name", "");
-
-    if (name.empty())
+    #ifdef _WIN32
+        std::string command = ".\\bin\\" + option + "\\" + name + ".exe";
+    #elif __linux__
+        std::string command = "./bin/" + option + "/" + name;
+    #endif
+    
+    if (!std::system(command.c_str()))
     {
-        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "Error with running program" << color(Defult)  << std::endl;
         exit(EXIT_FAILURE);
-    }
-
-    std::string type = toml::find_or<std::string>(data, "project", "type", "");
-
-    if (type.empty())
-    {
-        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    if (type != "program" && type != "shared" && type != "static")
-    {
-        std::cout << color(Red) << "build.toml project type is incorect" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    if (type == "program")
-    {
-        std::string temp;
-        if (option == "release")
-        {
-            temp = "release";
-        }
-        else
-        {
-            temp = "debug";
-        }
-
-        #ifdef _WIN32
-            std::string command = ".\\bin\\" + temp + "\\" + name + ".exe";
-
-        #elif __linux__
-            std::string command = "./bin/" + temp + "/" + name;
-        #endif
-
-        int result = std::system(command.c_str());
     }
 }
 
-void build(const std::string option)
+void build(const std::string option, 
+    std::string name,
+    std::string type, 
+    std::string cc, 
+    std::vector<std::string> ldflags,
+    std::vector<std::string> libs,
+    std::string binPath,
+    std::string objPath,
+    std::vector<std::string> cdefs,
+    std::vector<std::string> cflags,
+    std::string srcPath,
+    std::string includePath,
+    std::string libPath)
 {
-    std::filesystem::path currentPath = std::filesystem::current_path();
-    std::filesystem::path file = findBuildFile(currentPath);
-
-    if (file.empty())
-    {
-        std::cout << color(Red) << "No build.toml found" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    auto data = toml::parse(file, toml::spec::v(1,1,0));
-
-    std::string name = toml::find_or<std::string>(data, "project", "name", "");
-
-    if (name.empty())
-    {
-        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    std::string type = toml::find_or<std::string>(data, "project", "type", "");
-
-    if (type.empty())
-    {
-        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    if (type != "program" && type != "shared" && type != "static")
-    {
-        std::cout << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    std::string cc = toml::find_or<std::string>(data, "compiler", "cc", "");
-
-    if (cc.empty())
-    {
-        std::cout << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    // libs and flags
-
-    std::vector<std::string> ldflags = toml::find<std::vector<std::string>>(data, "compiler", "ldflags");
-    std::vector<std::string> libs = toml::find<std::vector<std::string>>(data, "compiler", "libs");
-
-    // object and bin paths
-
-    std::string binPath = toml::find<std::string>(data, "paths", "bin");
-    std::string objPath = toml::find<std::string>(data, "paths", "obj");
-
-    std::vector<std::string> cdefs;
-    std::vector<std::string> cflags;
-
     if (option == "release")
     {
-        cdefs = toml::find<std::vector<std::string>>(data, "compiler", "release", "cdefs");
-        cflags = toml::find<std::vector<std::string>>(data, "compiler", "release", "cflags");
         binPath += "/release";
         objPath += "/release";
     }
-    else // debug
+    else
     {
-        cdefs = toml::find<std::vector<std::string>>(data, "compiler", "debug", "cdefs");
-        cflags = toml::find<std::vector<std::string>>(data, "compiler", "debug", "cflags");
         binPath += "/debug";
         objPath += "/debug";
     }
@@ -348,10 +249,6 @@ void build(const std::string option)
         }
     }
 
-    // source path
-
-    std::string srcPath = toml::find<std::string>(data, "paths", "src");
-
     std::map<std::string, std::chrono::_V2::system_clock::time_point> srcTime;
 
     std::vector<std::string> cppFiles;
@@ -374,20 +271,6 @@ void build(const std::string option)
             }
         }
     }
-
-    // include path
-
-    std::string includePath = toml::find<std::string>(data, "paths", "include");
-
-    if (!std::filesystem::exists(includePath))
-    {
-        std::cout << color(Red) << includePath << " directory not found" << color(Defult) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    // lib path and files
-
-    std::string libPath = toml::find<std::string>(data, "paths", "lib");
 
     if (!std::filesystem::exists(libPath))
     {
@@ -423,10 +306,8 @@ void build(const std::string option)
         std::string main2 = binPath + "/" + name + "so.a";
     #endif
 
-    
-
     if (type == "shared")
-        cflags.push_back("-Wl,--out-implib,"+ main2);
+        cflags.push_back("-Wl,--out-implib," + main2);
 
     std::vector<std::string> filesToRecompile;
     std::vector<std::string> filesToRecompile2;
@@ -477,7 +358,7 @@ void build(const std::string option)
         {
             if (!compileObject(cc, cflags, cdefs, filesToRecompile2[i], filesToRecompile[i], includePath))
             {
-                std::cout << color(Red) << "Error" << color(Defult) << std::endl;
+                std::cout << color(Red) << "Compile Object Error" << color(Defult) << std::endl;
                 exit(EXIT_FAILURE);
             }
             anyFilesBuilt = true;
@@ -498,7 +379,7 @@ void build(const std::string option)
         {
             if (!compileBinarry(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
             {
-                std::cout << color(Red) << "Error" << color(Defult) << std::endl;
+                std::cout << color(Red) << "Compile Binarry Error" << color(Defult) << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -588,11 +469,11 @@ int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        std::cerr << color(Red) << "No option given. Try -h" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "No option given. Try help for how to use" << color(Defult) << std::endl;
         return EXIT_FAILURE;
     }
 
-    std::vector<std::string> options = {"-h", "-v", "clean", "build", "run", "new"};
+    std::vector<std::string> options = {"help", "version", "clean", "build", "run", "new"};
 
     int arch = 0; // 0 = x64, 1 = x32, 2 = arm64
     int release = 0; // 0 = debug, 1 = release
@@ -600,11 +481,20 @@ int main(int argc, char *argv[])
 
     std::tie(option, release, arch) = parseArguments(argc, argv, options);
 
+    //check for buid file and exit if not found
+    BuildFileLoader buildFile;
+
+    if (!buildFile.isFound())
+    {
+        std::cerr << "No Build File" << std::endl;
+        return EXIT_FAILURE;
+    }
+
     switch (option)
     {
         case 1:
-            std::cout << "-h - help menu" << std::endl;
-            std::cout << "-v - app version" << std::endl;
+            std::cout << "help - help menu" << std::endl;
+            std::cout << "version - app version" << std::endl;
             std::cout << "clean - removes all temp folders and files in project" << std::endl;
             std::cout << "build - builds project" << std::endl;
             std::cout << "run - runs project" << std::endl;
@@ -620,15 +510,29 @@ int main(int argc, char *argv[])
             break;
 
         case 3:
-            clean();
+            clean(buildFile.getBinPath(), buildFile.getObjPath());
             break;
 
         case 4:
-            build(release ? "release" : "debug");
+            build(release ? "release" : "debug",
+                buildFile.getName(),
+                buildFile.getType(),
+                buildFile.getCompiler(),
+                buildFile.getLdFlags(),
+                buildFile.getLibs(),
+                buildFile.getBinPath(),
+                buildFile.getObjPath(),
+                release ? buildFile.getDefsRelease() : buildFile.getDefsDebug(),
+                release ? buildFile.getFlagsRelease(): buildFile.getFlagsDebug(),
+                buildFile.getSrcPath(),
+                buildFile.getIncludePath(),
+                buildFile.getLibPath() );
             break;
 
         case 5:
-            run(release ? "release" : "debug");
+            run(release ? "release" : "debug", 
+                buildFile.getName(), 
+                buildFile.getType());
             break;
 
         case 6:

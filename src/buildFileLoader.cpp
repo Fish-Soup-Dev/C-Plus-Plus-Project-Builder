@@ -1,0 +1,137 @@
+#include "buildFileLoader.hpp"
+
+#include "color.hpp"
+
+#include <iostream>
+#include <filesystem>
+
+BuildFileLoader::BuildFileLoader() : m_isFile(true)
+{
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path file = findBuildFile(currentPath);
+
+    if (file.empty())
+    {
+        m_isFile == false;
+    }
+    else
+    {
+        m_data = toml::parse(file, toml::spec::v(1,1,0));
+    }
+}
+
+BuildFileLoader::~BuildFileLoader()
+{
+
+}
+
+bool BuildFileLoader::isFound()
+{
+    return m_isFile;
+}
+
+std::string BuildFileLoader::getBinPath()
+{
+    return toml::find<std::string>(m_data, "paths", "bin");
+}
+
+std::string BuildFileLoader::getObjPath()
+{
+    return toml::find<std::string>(m_data, "paths", "obj");
+}
+
+std::string BuildFileLoader::getName()
+{
+    std::string name = toml::find_or<std::string>(m_data, "project", "name", "");
+
+    if (name.empty())
+    {
+        std::cerr << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return name;
+}
+
+std::string BuildFileLoader::getType()
+{
+    std::string type = toml::find_or<std::string>(m_data, "project", "type", "");
+
+    if (type.empty())
+    {
+        std::cerr << color(Red) << "build.toml type value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (type != "program" && type != "shared" && type != "static")
+    {
+        std::cerr << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return type;
+}
+
+std::string BuildFileLoader::getCompiler()
+{
+    std::string cc = toml::find_or<std::string>(m_data, "compiler", "cc", "");
+
+    if (cc.empty())
+    {
+        std::cerr << color(Red) << "build.toml compiler value missing" << color(Defult) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return cc;
+}
+
+std::string BuildFileLoader::getSrcPath()
+{
+    return toml::find<std::string>(m_data, "paths", "src");
+}
+
+std::string BuildFileLoader::getIncludePath()
+{
+    // if (!std::filesystem::exists(includePath))
+    // {
+    //     std::cout << color(Red) << includePath << " directory not found" << color(Defult) << std::endl;
+    //     exit(EXIT_FAILURE);
+    // }
+
+    return toml::find<std::string>(m_data, "paths", "include");
+}
+
+std::string BuildFileLoader::getLibPath()
+{
+    return toml::find<std::string>(m_data, "paths", "lib");
+}
+
+std::vector<std::string> BuildFileLoader::getLdFlags()
+{
+    return toml::find<std::vector<std::string>>(m_data, "compiler", "ldflags");
+}
+
+std::vector<std::string> BuildFileLoader::getLibs()
+{
+    return toml::find<std::vector<std::string>>(m_data, "compiler", "libs");
+}
+
+std::vector<std::string> BuildFileLoader::getDefsRelease()
+{
+    return toml::find<std::vector<std::string>>(m_data, "compiler", "release", "cdefs");
+}
+
+std::vector<std::string> BuildFileLoader::getDefsDebug()
+{
+    return toml::find<std::vector<std::string>>(m_data, "compiler", "debug", "cdefs");
+}
+
+std::vector<std::string> BuildFileLoader::getFlagsRelease()
+{
+    return toml::find<std::vector<std::string>>(m_data, "compiler", "release", "cflags");
+}
+
+std::vector<std::string> BuildFileLoader::getFlagsDebug()
+{
+    return toml::find<std::vector<std::string>>(m_data, "compiler", "debug", "cflags");
+}
