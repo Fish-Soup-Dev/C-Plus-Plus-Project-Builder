@@ -15,8 +15,7 @@
 int MakeProject()
 {
     // --------------------------------
-    std::cout << "Project name" << std::endl;
-    std::cout << color(Blue) << ">> " << color(Defult);
+    std::cout << "? Project name " << color(Blue) << "> " << color(Defult);
     std::string name;
     std::getline(std::cin, name);
 
@@ -28,9 +27,7 @@ int MakeProject()
 
     // --------------------------------
 
-    std::cout << "Build Options (1) program (2) shared (3) static" << std::endl;
-    
-    std::cout << color(Blue) << ">> " << color(Defult);
+    std::cout << "? Build Options (1) program, (2) shared, (3) static " << color(Blue) << "> " << color(Defult);
     std::string type;
     std::getline(std::cin, type);
 
@@ -42,8 +39,7 @@ int MakeProject()
 
     // --------------------------------
 
-    std::cout << "C++ Version [89, 03, 11, 14, 17, 20]" << std::endl;
-    std::cout << color(Blue) << ">> " << color(Defult);
+    std::cout << "? C++ Version [89, 03, 11, 14, 17, 20] " << color(Blue) << "> " << color(Defult);
     std::string version;
     std::getline(std::cin, version);
 
@@ -99,7 +95,7 @@ int MakeProject()
             mainFile.close();
 
             typeName = "program";
-            cflagsR = "\"-O2\", \"-static\", \"" + versionName + "\"";
+            cflagsR = "\"-O2\", \"" + versionName + "\"";
             cflagsD = "\"-g\", \"-Wall\", \"" + versionName + "\"";
             cdefsR = "\"-DNDEBUG\"";
             cdefsD = "\"-DDEBUG\"";
