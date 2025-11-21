@@ -1,4 +1,4 @@
-#define VERSION "0.5.2"
+#define VERSION "0.5.3"
 
 #include <iostream>
 #include <filesystem>
@@ -13,7 +13,7 @@
 #include <tuple>
 
 #include "color.hpp"
-#include "templateGenorator.hpp"
+#include "templateGenerator.hpp"
 #include "buildFileLoader.hpp"
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath)
@@ -64,18 +64,18 @@ int compileObject
 
     if (result == EXIT_SUCCESS)
     {
-        std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Defult) << std::endl;
+        std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
     }
     else
     {
-        std::cout << color(Red) << objectFile << " Failed." << color(Defult) << std::endl;
+        std::cout << color(Red) << objectFile << " Failed." << color(Default) << std::endl;
         return false;
     }
 
     return true;
 }
 
-int compileBinarry
+int compileBinary
 (
     const std::string cc, 
     const std::vector<std::string> cflags, 
@@ -119,10 +119,10 @@ int compileBinarry
     std::chrono::duration<double> duration = end - start;
 
     if (result == EXIT_SUCCESS)
-        std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Defult) << std::endl;
+        std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
     else
     {
-        std::cout << color(Red) << main << " Failed." << color(Defult) << std::endl;
+        std::cout << color(Red) << main << " Failed." << color(Default) << std::endl;
         return false;
     }
 
@@ -151,10 +151,10 @@ int archiveStatic
     std::chrono::duration<double> duration = end - start;
 
     if (result == EXIT_SUCCESS)
-        std::cout << color(Gray) << main << " packed in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Defult) << std::endl;
+        std::cout << color(Gray) << main << " packed in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
     else
     {
-        std::cout << color(Red) << main << " Failed." << color(Defult) << std::endl;
+        std::cout << color(Red) << main << " Failed." << color(Default) << std::endl;
         return false;
     }
 
@@ -168,12 +168,12 @@ void clean
 )
 {
     std::filesystem::remove_all(binPath);
-    std::cout << color(Gray) << "deleted " << binPath << color(Defult) << std::endl;
+    std::cout << color(Gray) << "deleted " << binPath << color(Default) << std::endl;
 
     std::filesystem::remove_all(objPath);
-    std::cout << color(Gray) << "deleted " << objPath << color(Defult) << std::endl;
+    std::cout << color(Gray) << "deleted " << objPath << color(Default) << std::endl;
 
-    std::cout << color(Green) << "Project cleaned" << color(Defult) << std::endl;
+    std::cout << color(Green) << "Project cleaned" << color(Default) << std::endl;
 }
 
 void run
@@ -185,7 +185,7 @@ void run
 {
     if (type != "program")
     {
-        std::cerr << color(Red) << "Error can only run programs" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "Error can only run programs" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -197,23 +197,23 @@ void run
     
     if (std::system(command.c_str()))
     {
-        std::cerr << color(Red) << "Program returned an error" << color(Defult)  << std::endl;
+        std::cerr << color(Red) << "Program returned an error" << color(Default)  << std::endl;
     }
 }
 
 void build(const std::string option, 
-    std::string name,
-    std::string type, 
-    std::string cc, 
-    std::vector<std::string> ldflags,
-    std::vector<std::string> libs,
+    const std::string name,
+    const std::string type, 
+    const std::string cc, 
+    const std::vector<std::string> ldflags,
+    const std::vector<std::string> libs,
     std::string binPath,
     std::string objPath,
     std::vector<std::string> cdefs,
     std::vector<std::string> cflags,
-    std::string srcPath,
-    std::string includePath,
-    std::string libPath)
+    const std::string srcPath,
+    const std::string includePath,
+    const std::string libPath)
 {
     if (option == "release")
     {
@@ -228,7 +228,7 @@ void build(const std::string option,
 
     if (!std::filesystem::exists(binPath))
     {
-        std::cout << color(Gray) << binPath << " directory not found. Creating..." << color(Defult) << std::endl;
+        std::cout << color(Gray) << binPath << " directory not found. Creating..." << color(Default) << std::endl;
         std::filesystem::create_directories(binPath);
     }
     
@@ -236,7 +236,7 @@ void build(const std::string option,
 
     if (!std::filesystem::exists(objPath))
     {
-        std::cout << color(Gray) << objPath << " directory not found. Creating..." << color(Defult) << std::endl;
+        std::cout << color(Gray) << objPath << " directory not found. Creating..." << color(Default) << std::endl;
         std::filesystem::create_directories(objPath);
     }
     else // get when obj files where edited
@@ -257,7 +257,7 @@ void build(const std::string option,
 
     if (!std::filesystem::exists(srcPath))
     {
-        std::cout << color(Red) << srcPath << " directory not found" << color(Defult) << std::endl;
+        std::cout << color(Red) << srcPath << " directory not found" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
     else
@@ -275,7 +275,7 @@ void build(const std::string option,
 
     if (!std::filesystem::exists(libPath))
     {
-        std::cout << color(Red) << libPath << " directory not found" << color(Defult) << std::endl;
+        std::cout << color(Red) << libPath << " directory not found" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -297,9 +297,7 @@ void build(const std::string option,
 
         std::string main2 = binPath + "/" + name + "dll.lib";
     #elif __linux__
-        if (type == "program")
-            main; // do nothing
-        else if (type == "shared")
+        if (type == "shared")
             main += ".so";
         else
             main += ".a";
@@ -343,7 +341,7 @@ void build(const std::string option,
     }
     else
     {
-        std::cout << color(Red) << "No C++ source files found" << color(Defult) << std::endl;
+        std::cout << color(Red) << "No C++ source files found" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -359,7 +357,7 @@ void build(const std::string option,
         {
             if (!compileObject(cc, cflags, cdefs, filesToRecompile2[i], filesToRecompile[i], includePath))
             {
-                std::cout << color(Red) << "Compile Object Error" << color(Defult) << std::endl;
+                std::cout << color(Red) << "Compile Object Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
             anyFilesBuilt = true;
@@ -372,15 +370,15 @@ void build(const std::string option,
         {
             if (!archiveStatic(objFiles, main))
             {
-                std::cout << color(Red) << "Error" << color(Defult) << std::endl;
+                std::cout << color(Red) << "Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
         else
         {
-            if (!compileBinarry(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
+            if (!compileBinary(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
             {
-                std::cout << color(Red) << "Compile Binarry Error" << color(Defult) << std::endl;
+                std::cout << color(Red) << "Compile Binary Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -389,12 +387,12 @@ void build(const std::string option,
 
         auto buildEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> buildDuration = buildEnd - buildStart;
-        std::cout << color(Green) << main << " done in " << buildDuration.count() << "s" << color(Defult) << std::endl;
+        std::cout << color(Green) << main << " done in " << buildDuration.count() << "s" << color(Default) << std::endl;
     }
 
     if (!anyFilesBuilt)
     {
-        std::cout << color(Gray) << "No new changes detected" << color(Defult) << std::endl;
+        std::cout << color(Gray) << "No new changes detected" << color(Default) << std::endl;
     }
 }
 
@@ -459,7 +457,7 @@ std::tuple<int, int, int> parseArguments(int count, char *argumentArray[], std::
     // If flags were provided but the selected option is not build(4) or run(5), error out.
     if (anyFlagSeen && optionIndex != 4 && optionIndex != 5)
     {
-        std::cerr << color(Red) << "Release/arch flags are only valid with 'build' or 'run'." << color(Defult) << std::endl;
+        std::cerr << color(Red) << "Release/arch flags are only valid with 'build' or 'run'." << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -470,7 +468,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        std::cerr << color(Red) << "No option given. Try help for how to use" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "No option given. Try help for how to use" << color(Default) << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -541,7 +539,7 @@ int main(int argc, char *argv[])
             break;
 
         default:
-            std::cerr << color(Red) << "Unknown option. Try -h" << color(Defult) << std::endl;
+            std::cerr << color(Red) << "Unknown option. Try -h" << color(Default) << std::endl;
             return EXIT_FAILURE;
     }
 

@@ -1,4 +1,4 @@
-#include "templateGenorator.hpp"
+#include "templateGenerator.hpp"
 
 #include <iostream>
 #include <filesystem>
@@ -15,37 +15,37 @@
 int MakeProject()
 {
     // --------------------------------
-    std::cout << "? Project name " << color(Blue) << "> " << color(Defult);
+    std::cout << "? Project name " << color(Blue) << "> " << color(Default);
     std::string name;
     std::getline(std::cin, name);
 
     if (name.empty())
     {
-        std::cout << color(Red) << "Error no name given" << color(Defult) << std::endl;
+        std::cout << color(Red) << "Error no name given" << color(Default) << std::endl;
         return 1;
     }
 
     // --------------------------------
 
-    std::cout << "? Build Options (1) program, (2) shared, (3) static " << color(Blue) << "> " << color(Defult);
+    std::cout << "? Build Options (1) program, (2) shared, (3) static " << color(Blue) << "> " << color(Default);
     std::string type;
     std::getline(std::cin, type);
 
     if (type.empty())
     {
-        std::cout << color(Red) << "Error no type given" << color(Defult) << std::endl;
+        std::cout << color(Red) << "Error no type given" << color(Default) << std::endl;
         return 1;
     }
 
     // --------------------------------
 
-    std::cout << "? C++ Version [89, 03, 11, 14, 17, 20] " << color(Blue) << "> " << color(Defult);
+    std::cout << "? C++ Version [89, 03, 11, 14, 17, 20] " << color(Blue) << "> " << color(Default);
     std::string version;
     std::getline(std::cin, version);
 
     if (version.empty())
     {
-        std::cout << color(Red) << "Error no version given" << color(Defult) << std::endl;
+        std::cout << color(Red) << "Error no version given" << color(Default) << std::endl;
         return 1;
     }
 
@@ -77,7 +77,7 @@ int MakeProject()
 
     std::string project_path = "./" + name;
 
-    std::cout << color(Green) << "Maing template at " << project_path << std::endl;
+    std::cout << color(Green) << "Makeing template at " << project_path << std::endl;
 
     std::filesystem::create_directory(project_path);
     std::filesystem::create_directory(project_path + "/src");
@@ -107,9 +107,9 @@ int MakeProject()
             std::string nameupper = name;
             std::transform(nameupper.begin(), nameupper.end(), nameupper.begin(), ::toupper);
 
-            std::ofstream headderDllFile(project_path + "/include/" + name + ".h");
-            headderDllFile << sharedLibHeadderTemplate(nameupper);
-            headderDllFile.close();
+            std::ofstream headerDllFile(project_path + "/include/" + name + ".h");
+            headerDllFile << sharedLibHeaderTemplate(nameupper);
+            headerDllFile.close();
 
             std::ofstream mainDllFile(project_path + "/src/" + name +".cpp");
             mainDllFile << sharedLibTemplate(name);
@@ -128,9 +128,9 @@ int MakeProject()
             std::string nameupper = name;
             std::transform(nameupper.begin(), nameupper.end(), nameupper.begin(), ::toupper);
 
-            std::ofstream headderLibFile(project_path + "/include/" + name + ".h");
-            headderLibFile << staticLibHeadderTemplate(nameupper);
-            headderLibFile.close();
+            std::ofstream headerLibFile(project_path + "/include/" + name + ".h");
+            headerLibFile << staticLibHeaderTemplate(nameupper);
+            headerLibFile.close();
 
             std::ofstream mainLibFile(project_path + "/src/" + name +".cpp");
             mainLibFile << staticLibTemplate(name);
@@ -152,7 +152,7 @@ int MakeProject()
     buildFile << buildfile_template(name, typeName, cflagsR, cflagsD, cdefsR, cdefsD);
     buildFile.close();
 
-    std::cout << color(Green) << "Done." << color(Defult) << std::endl;
+    std::cout << color(Green) << "Done." << color(Default) << std::endl;
 
     return 0;
 }

@@ -12,7 +12,7 @@ BuildFileLoader::BuildFileLoader() : m_isFile(true)
 
     if (file.empty())
     {
-        m_isFile == false;
+        m_isFile = false;
     }
     else
     {
@@ -46,7 +46,7 @@ std::string BuildFileLoader::getName()
 
     if (name.empty())
     {
-        std::cerr << color(Red) << "build.toml name value missing" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "build.toml name value missing" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -59,13 +59,13 @@ std::string BuildFileLoader::getType()
 
     if (type.empty())
     {
-        std::cerr << color(Red) << "build.toml type value missing" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "build.toml type value missing" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
     if (type != "program" && type != "shared" && type != "static")
     {
-        std::cerr << color(Red) << "build.toml type is incorect" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "build.toml type is incorrect" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -78,7 +78,7 @@ std::string BuildFileLoader::getCompiler()
 
     if (cc.empty())
     {
-        std::cerr << color(Red) << "build.toml compiler value missing" << color(Defult) << std::endl;
+        std::cerr << color(Red) << "build.toml compiler value missing" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -94,7 +94,7 @@ std::string BuildFileLoader::getIncludePath()
 {
     // if (!std::filesystem::exists(includePath))
     // {
-    //     std::cout << color(Red) << includePath << " directory not found" << color(Defult) << std::endl;
+    //     std::cout << color(Red) << includePath << " directory not found" << color(Default) << std::endl;
     //     exit(EXIT_FAILURE);
     // }
 

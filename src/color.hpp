@@ -10,7 +10,7 @@ enum COLORS
     Yellow = 33,
     Blue = 34,
     Gray = 90,
-    Defult = 0,
+    Default = 0,
 };
 
 std::string inline color(enum COLORS color)

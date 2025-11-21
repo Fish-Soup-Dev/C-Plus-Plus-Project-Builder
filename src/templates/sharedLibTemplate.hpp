@@ -3,7 +3,7 @@
 
 #include <string>
 
-std::string inline sharedLibHeadderTemplate(std::string name)
+std::string inline sharedLibHeaderTemplate(const std::string name)
 {
     return
 R"(#ifndef )" + name + R"(_HPP
@@ -30,7 +30,7 @@ R"(#ifndef )" + name + R"(_HPP
 #endif)";
 }
 
-std::string inline sharedLibTemplate(std::string name)
+std::string inline sharedLibTemplate(const std::string name)
 {
     return
 R"(#include ")" + name + R"(.h"
