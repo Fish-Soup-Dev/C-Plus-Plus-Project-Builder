@@ -2,7 +2,7 @@ CXX = g++
 #CXX=aarch64-linux-gnu-g++
 
 BUILD ?= DEBUG
-CFLAGS = -std=c++20 -static
+CFLAGS = -std=c++20 -static -pthread
 LIBS =
 DEFS = 
 

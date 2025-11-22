@@ -1,4 +1,4 @@
-#define VERSION "0.5.3"
+#define VERSION "0.6.2"
 
 #include <iostream>
 #include <filesystem>
@@ -11,10 +11,15 @@
 #include <string>
 #include <unistd.h>
 #include <tuple>
+#include <thread>
+#include <atomic>
 
 #include "color.hpp"
 #include "templateGenerator.hpp"
 #include "buildFileLoader.hpp"
+
+// main thread id used to detect worker threads
+static std::thread::id g_mainThreadId;
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath)
 {
@@ -64,11 +69,18 @@ int compileObject
 
     if (result == EXIT_SUCCESS)
     {
-        std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
+        std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s";
+        // if called from a worker thread, append thread id
+        if (std::this_thread::get_id() != g_mainThreadId)
+            std::cout << " [thread " << std::this_thread::get_id() << "]";
+        std::cout << color(Default) << std::endl;
     }
     else
     {
-        std::cout << color(Red) << objectFile << " Failed." << color(Default) << std::endl;
+        std::cout << color(Red) << objectFile << " Failed.";
+        if (std::this_thread::get_id() != g_mainThreadId)
+            std::cout << " [thread " << std::this_thread::get_id() << "]";
+        std::cout << color(Default) << std::endl;
         return false;
     }
 
@@ -201,7 +213,9 @@ void run
     }
 }
 
-void build(const std::string option, 
+void build
+(
+    const std::string option, 
     const std::string name,
     const std::string type, 
     const std::string cc, 
@@ -213,7 +227,9 @@ void build(const std::string option,
     std::vector<std::string> cflags,
     const std::string srcPath,
     const std::string includePath,
-    const std::string libPath)
+    const std::string libPath,
+    size_t maxThreads
+)
 {
     if (option == "release")
     {
@@ -299,7 +315,7 @@ void build(const std::string option,
     #elif __linux__
         if (type == "shared")
             main += ".so";
-        else
+        else if (type != "program")
             main += ".a";
 
         std::string main2 = binPath + "/" + name + "so.a";
@@ -353,14 +369,62 @@ void build(const std::string option,
     {
         std::cout << "Starting build " << type << " " << option << "..." << std::endl;
 
-        for (size_t i = 0; i < filesToRecompile.size(); i++)
+        if (maxThreads > 0)
         {
-            if (!compileObject(cc, cflags, cdefs, filesToRecompile2[i], filesToRecompile[i], includePath))
+            std::vector<std::thread> workers;
+            std::atomic<bool> failed(false);
+
+            for (size_t i = 0; i < filesToRecompile.size(); i++)
+            {
+                // copy parameters for thread
+                std::string srcFile = filesToRecompile[i];
+                std::string objFile = filesToRecompile2[i];
+                auto cc_copy = cc;
+                auto cflags_copy = cflags;
+                auto cdefs_copy = cdefs;
+                auto include_copy = includePath;
+
+                workers.emplace_back([cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy, &failed]() {
+                    if (failed.load())
+                        return;
+
+                    if (!compileObject(cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy))
+                        failed.store(true);
+                });
+
+                // throttle threads: when we reach max, join the oldest one
+                if (workers.size() >= maxThreads)
+                {
+                    workers.front().join();
+                    workers.erase(workers.begin());
+                    if (failed.load())
+                        break;
+                }
+            }
+
+            // join remaining workers
+            for (auto &t : workers)
+                t.join();
+
+            if (failed.load())
             {
                 std::cout << color(Red) << "Compile Object Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
+
             anyFilesBuilt = true;
+        }
+        else
+        {
+            for (size_t i = 0; i < filesToRecompile.size(); i++)
+            {
+                if (!compileObject(cc, cflags, cdefs, filesToRecompile2[i], filesToRecompile[i], includePath))
+                {
+                    std::cout << color(Red) << "Compile Object Error" << color(Default) << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                anyFilesBuilt = true;
+            }
         }
     }
     
@@ -396,10 +460,11 @@ void build(const std::string option,
     }
 }
 
-std::tuple<int, int, int> parseArguments(int count, char *argumentArray[], std::vector<std::string> options)
+std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[], std::vector<std::string> options)
 {
     int optionIndex = 0; // 0 = none / unknown, otherwise j+1 (matches options vector)
     int release = 0;     // 0 = debug (default), 1 = release
+    bool threads = false; 
     int arch = 0;        // 0 = x64 (default), 1 = x32, 2 = arm64
 
     bool anyFlagSeen = false;
@@ -433,6 +498,14 @@ std::tuple<int, int, int> parseArguments(int count, char *argumentArray[], std::
             continue;
         }
 
+        // thread flag
+        if (arg == "-t" || arg == "--threads")
+        {
+            threads = true;
+            anyFlagSeen = true;
+            continue;
+        }
+
         // arch flags
         if (arg == "-x64" || arg == "--x64")
         {
@@ -461,7 +534,7 @@ std::tuple<int, int, int> parseArguments(int count, char *argumentArray[], std::
         exit(EXIT_FAILURE);
     }
 
-    return std::make_tuple(optionIndex, release, arch);
+    return std::make_tuple(optionIndex, threads, release, arch);
 }
 
 int main(int argc, char *argv[])
@@ -474,11 +547,15 @@ int main(int argc, char *argv[])
 
     std::vector<std::string> options = {"help", "version", "clean", "build", "run", "new"};
 
+    // record main thread id so workers can detect they're in a thread
+    g_mainThreadId = std::this_thread::get_id();
+
     int arch = 0; // 0 = x64, 1 = x32, 2 = arm64
     int release = 0; // 0 = debug, 1 = release
+    bool threads = false;
     int option = 0;
 
-    std::tie(option, release, arch) = parseArguments(argc, argv, options);
+    std::tie(option, threads, release, arch) = parseArguments(argc, argv, options);
 
     //check for buid file and exit if not found
     BuildFileLoader buildFile;
@@ -513,6 +590,22 @@ int main(int argc, char *argv[])
             break;
 
         case 4:
+        {
+            size_t maxThreadsLocal = 0;
+            if (threads)
+            {
+                unsigned int hc = std::thread::hardware_concurrency();
+                if (hc == 0)
+                {
+                    long n = sysconf(_SC_NPROCESSORS_ONLN);
+                    if (n > 0)
+                        hc = static_cast<unsigned int>(n);
+                }
+                if (hc == 0)
+                    hc = 1;
+                maxThreadsLocal = static_cast<size_t>(hc);
+            }
+
             build(release ? "release" : "debug",
                 buildFile.getName(),
                 buildFile.getType(),
@@ -525,8 +618,10 @@ int main(int argc, char *argv[])
                 release ? buildFile.getFlagsRelease(): buildFile.getFlagsDebug(),
                 buildFile.getSrcPath(),
                 buildFile.getIncludePath(),
-                buildFile.getLibPath() );
+                buildFile.getLibPath(),
+                maxThreadsLocal );
             break;
+        }
 
         case 5:
             run(release ? "release" : "debug", 
@@ -539,7 +634,7 @@ int main(int argc, char *argv[])
             break;
 
         default:
-            std::cerr << color(Red) << "Unknown option. Try -h" << color(Default) << std::endl;
+            std::cerr << color(Red) << "Unknown option. Try (help)" << color(Default) << std::endl;
             return EXIT_FAILURE;
     }
 
