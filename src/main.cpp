@@ -1,4 +1,4 @@
-#define VERSION "0.6.6"
+#define VERSION "0.6.8"
 
 #include <iostream>
 #include <filesystem>
@@ -77,7 +77,7 @@ int compileObject
     }
     else
     {
-        std::cout << color(Red) << objectFile << " Failed.";
+        std::cout << color(Red, true) << objectFile << " Failed.";
         if (std::this_thread::get_id() != g_mainThreadId)
             std::cout << " [thread " << std::this_thread::get_id() << "]";
         std::cout << color(Default) << std::endl;
@@ -134,7 +134,7 @@ int compileBinary
         std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
     else
     {
-        std::cout << color(Red) << main << " Failed." << color(Default) << std::endl;
+        std::cout << color(Red, true) << main << " Failed." << color(Default) << std::endl;
         return false;
     }
 
@@ -166,7 +166,7 @@ int archiveStatic
         std::cout << color(Gray) << main << " packed in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
     else
     {
-        std::cout << color(Red) << main << " Failed." << color(Default) << std::endl;
+        std::cout << color(Red, true) << main << " Failed." << color(Default) << std::endl;
         return false;
     }
 
@@ -209,7 +209,7 @@ void run
     
     if (std::system(command.c_str()))
     {
-        std::cerr << color(Red) << "Program returned an error" << color(Default)  << std::endl;
+        std::cerr << color(Red, true) << "Program returned an error" << color(Default)  << std::endl;
     }
 }
 
@@ -273,14 +273,14 @@ void build
 
     if (!std::filesystem::exists(srcPath))
     {
-        std::cout << color(Red) << srcPath << " directory not found" << color(Default) << std::endl;
+        std::cout << color(Red, true) << srcPath << " directory not found" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
     else
     {
         for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath))
         {
-            if (!entry.is_directory() && entry.path().extension() == ".cpp")
+            if (!entry.is_directory() && entry.path().extension() == ".cpp" || entry.path().extension() == ".c")
             {
                 cppFiles.push_back(entry.path().string());
                 objFiles.push_back(objPath + "/" + entry.path().stem().string() + ".o");
@@ -291,7 +291,7 @@ void build
 
     if (!std::filesystem::exists(libPath))
     {
-        std::cout << color(Red) << libPath << " directory not found" << color(Default) << std::endl;
+        std::cout << color(Red, true) << libPath << " directory not found" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -357,7 +357,7 @@ void build
     }
     else
     {
-        std::cout << color(Red) << "No C++ source files found" << color(Default) << std::endl;
+        std::cout << color(Red, true) << "No C++ source files found" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -408,7 +408,7 @@ void build
 
             if (failed.load())
             {
-                std::cout << color(Red) << "Compile Object Error" << color(Default) << std::endl;
+                std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
 
@@ -420,7 +420,7 @@ void build
             {
                 if (!compileObject(cc, cflags, cdefs, filesToRecompile2[i], filesToRecompile[i], includePath))
                 {
-                    std::cout << color(Red) << "Compile Object Error" << color(Default) << std::endl;
+                    std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 anyFilesBuilt = true;
@@ -434,7 +434,7 @@ void build
         {
             if (!archiveStatic(objFiles, main))
             {
-                std::cout << color(Red) << "Error" << color(Default) << std::endl;
+                std::cout << color(Red, true) << "Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -442,7 +442,7 @@ void build
         {
             if (!compileBinary(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
             {
-                std::cout << color(Red) << "Compile Binary Error" << color(Default) << std::endl;
+                std::cout << color(Red, true) << "Compile Binary Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -530,7 +530,7 @@ std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[],
     // If flags were provided but the selected option is not build(4) or run(5), error out.
     if (anyFlagSeen && optionIndex != 4 && optionIndex != 5)
     {
-        std::cerr << color(Red) << "Release/arch flags are only valid with 'build' or 'run'." << color(Default) << std::endl;
+        std::cerr << color(Red, true) << "Release/arch flags are only valid with 'build' or 'run'." << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -541,7 +541,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        std::cerr << color(Red) << "No option given. Try help for how to use" << color(Default) << std::endl;
+        std::cerr << color(Red, true) << "No option given. Try help for how to use" << color(Default) << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -583,7 +583,7 @@ int main(int argc, char *argv[])
         {
             if (!buildFile.isFound())
             {
-                std::cerr << color(Red) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+                std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
                 return EXIT_FAILURE;
             }
             
@@ -594,7 +594,7 @@ int main(int argc, char *argv[])
         {
             if (!buildFile.isFound())
             {
-                std::cerr << color(Red) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+                std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
                 return EXIT_FAILURE;
             }
 
@@ -634,7 +634,7 @@ int main(int argc, char *argv[])
         {
             if (!buildFile.isFound())
             {
-                std::cerr << color(Red) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+                std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
                 return EXIT_FAILURE;
             }
             
@@ -649,7 +649,7 @@ int main(int argc, char *argv[])
             break;
 
         default:
-            std::cerr << color(Red) << "Unknown option. Try (help)" << color(Default) << std::endl;
+            std::cerr << color(Red, true) << "Unknown option. Try (help)" << color(Default) << std::endl;
             return EXIT_FAILURE;
     }
 

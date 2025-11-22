@@ -13,9 +13,12 @@ enum COLORS
     Default = 0,
 };
 
-std::string inline color(enum COLORS color)
+std::string inline color(enum COLORS color, bool bold = false)
 {
-    return "\033[" + std::to_string(color) + "m";
+    if (bold)
+        return "\033[1;" + std::to_string(color) + "m";
+    else
+        return "\033[0;" + std::to_string(color) + "m";
 }
 
 #endif
