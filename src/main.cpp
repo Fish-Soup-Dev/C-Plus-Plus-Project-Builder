@@ -1,4 +1,4 @@
-#define VERSION "0.6.5"
+#define VERSION "0.6.6"
 
 #include <iostream>
 #include <filesystem>
@@ -560,12 +560,6 @@ int main(int argc, char *argv[])
     //check for buid file and exit if not found
     BuildFileLoader buildFile;
 
-    if (!buildFile.isFound())
-    {
-        std::cerr << "No Build File" << std::endl;
-        return EXIT_FAILURE;
-    }
-
     switch (option)
     {
         case 1:
@@ -586,11 +580,24 @@ int main(int argc, char *argv[])
             break;
 
         case 3:
+        {
+            if (!buildFile.isFound())
+            {
+                std::cerr << color(Red) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+                return EXIT_FAILURE;
+            }
+            
             clean(buildFile.getBinPath(), buildFile.getObjPath());
             break;
-
+        }
         case 4:
         {
+            if (!buildFile.isFound())
+            {
+                std::cerr << color(Red) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+                return EXIT_FAILURE;
+            }
+
             size_t maxThreadsLocal = 0;
             if (threads)
             {
@@ -624,11 +631,19 @@ int main(int argc, char *argv[])
         }
 
         case 5:
+        {
+            if (!buildFile.isFound())
+            {
+                std::cerr << color(Red) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+                return EXIT_FAILURE;
+            }
+            
             run(release ? "release" : "debug", 
                 buildFile.getName(), 
                 buildFile.getType());
-            break;
 
+            break;
+        }
         case 6:
             MakeProject();
             break;
