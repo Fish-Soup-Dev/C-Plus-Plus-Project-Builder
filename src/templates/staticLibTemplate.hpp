@@ -3,20 +3,7 @@
 
 #include <string>
 
-std::string inline staticLibHeaderTemplate(const std::string name)
-{
-    return
-R"(#ifndef )" + name + R"(_HPP
-#define )" + name + R"(_HPP
-
-#endif)";
-}
-
-std::string inline staticLibTemplate(const std::string name)
-{
-    return
-R"(#include ")" + name + R"(.h"
-)";
-}
+std::string staticLibHeaderTemplate(const std::string name);
+std::string staticLibTemplate(const std::string name);
 
 #endif
