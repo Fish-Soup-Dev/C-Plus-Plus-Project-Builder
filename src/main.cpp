@@ -1,4 +1,4 @@
-#define VERSION "0.6.8"
+#define VERSION "0.6.10"
 
 #include <iostream>
 #include <filesystem>
@@ -17,6 +17,12 @@
 #include "color.hpp"
 #include "templateGenerator.hpp"
 #include "buildFileLoader.hpp"
+
+#ifdef DEBUG
+    #define DEBUG_PRINT(x) std::cout << "DEBUG: " << x << std::endl;
+#else
+    #define DEBUG_PRINT(x)
+#endif
 
 // main thread id used to detect worker threads
 static std::thread::id g_mainThreadId;
@@ -47,6 +53,8 @@ int compileObject
     const std::string includePath
 )
 {
+    bool isThread = std::this_thread::get_id() != g_mainThreadId;
+
     std::string command = cc;
 
     for (const auto& cflag : cflags)
@@ -67,23 +75,20 @@ int compileObject
 
     std::chrono::duration<double> duration = end - start;
 
-    if (result == EXIT_SUCCESS)
+    if (isThread)
     {
-        std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s";
-        // if called from a worker thread, append thread id
-        if (std::this_thread::get_id() != g_mainThreadId)
-            std::cout << " [thread " << std::this_thread::get_id() << "]";
-        std::cout << color(Default) << std::endl;
+        std::cout << color(Gray) << "[Thread] ";
     }
-    else
+
+    if (result != EXIT_SUCCESS)
     {
-        std::cout << color(Red, true) << objectFile << " Failed.";
-        if (std::this_thread::get_id() != g_mainThreadId)
-            std::cout << " [thread " << std::this_thread::get_id() << "]";
-        std::cout << color(Default) << std::endl;
+        std::cout << color(Red, true) << objectFile << " Failed." << color(Default) << std::endl;
+        DEBUG_PRINT("Command was: " + command);
         return false;
     }
 
+    std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
+    DEBUG_PRINT("Command was: " + command);
     return true;
 }
 
@@ -130,14 +135,15 @@ int compileBinary
 
     std::chrono::duration<double> duration = end - start;
 
-    if (result == EXIT_SUCCESS)
-        std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
-    else
+    if (result != EXIT_SUCCESS)
     {
         std::cout << color(Red, true) << main << " Failed." << color(Default) << std::endl;
+        DEBUG_PRINT("Command was: " + command);
         return false;
     }
 
+    std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
+    DEBUG_PRINT("Command was: " + command);
     return true;
 }
 
@@ -162,14 +168,15 @@ int archiveStatic
 
     std::chrono::duration<double> duration = end - start;
 
-    if (result == EXIT_SUCCESS)
-        std::cout << color(Gray) << main << " packed in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
-    else
+    if (result != EXIT_SUCCESS)
     {
         std::cout << color(Red, true) << main << " Failed." << color(Default) << std::endl;
+        DEBUG_PRINT("Command was: " + command);
         return false;
     }
 
+    std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
+    DEBUG_PRINT("Command was: " + command);
     return true;
 }
 
@@ -211,6 +218,8 @@ void run
     {
         std::cerr << color(Red, true) << "Program returned an error" << color(Default)  << std::endl;
     }
+
+    DEBUG_PRINT("Command was: " + command);
 }
 
 void build
@@ -280,7 +289,7 @@ void build
     {
         for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath))
         {
-            if (!entry.is_directory() && entry.path().extension() == ".cpp" || entry.path().extension() == ".c")
+            if (!entry.is_directory() && (entry.path().extension() == ".cpp" || entry.path().extension() == ".c"))
             {
                 cppFiles.push_back(entry.path().string());
                 objFiles.push_back(objPath + "/" + entry.path().stem().string() + ".o");
