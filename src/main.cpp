@@ -1,4 +1,4 @@
-#define VERSION "0.6.11"
+#define VERSION "0.6.12"
 
 #include <iostream>
 #include <filesystem>
@@ -613,12 +613,8 @@ int main(int argc, char *argv[])
                 unsigned int hc = std::thread::hardware_concurrency();
                 if (hc == 0)
                 {
-                    long n = sysconf(_SC_NPROCESSORS_ONLN);
-                    if (n > 0)
-                        hc = static_cast<unsigned int>(n);
-                }
-                if (hc == 0)
                     hc = 1;
+                }   
                 maxThreadsLocal = static_cast<size_t>(hc);
             }
 
