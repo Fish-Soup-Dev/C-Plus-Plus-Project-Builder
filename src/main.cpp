@@ -1,4 +1,4 @@
-#define VERSION "0.6.12"
+#define VERSION "0.6.14"
 
 #include <iostream>
 #include <filesystem>
@@ -31,7 +31,7 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::string& fileP
 {
     namespace fs = std::filesystem;
     std::error_code ec;
-    
+
     auto ftime = fs::last_write_time(fs::path(filePath), ec);
 
     if (ec)
@@ -45,11 +45,11 @@ std::chrono::system_clock::time_point fileLastWriteTime(const std::string& fileP
 
 int compileObject
 (
-    const std::string cc, 
-    const std::vector<std::string> cflags, 
-    const std::vector<std::string> cdefs, 
-    const std::string objectFile, 
-    const std::string sourceFile, 
+    const std::string cc,
+    const std::vector<std::string> cflags,
+    const std::vector<std::string> cdefs,
+    const std::string objectFile,
+    const std::string sourceFile,
     const std::string includePath
 )
 {
@@ -94,12 +94,12 @@ int compileObject
 
 int compileBinary
 (
-    const std::string cc, 
-    const std::vector<std::string> cflags, 
-    const std::vector<std::string> cdefs, 
-    const std::vector<std::string> objFiles, 
-    const std::vector<std::string> libFiles, 
-    const std::vector<std::string> libs, 
+    const std::string cc,
+    const std::vector<std::string> cflags,
+    const std::vector<std::string> cdefs,
+    const std::vector<std::string> objFiles,
+    const std::vector<std::string> libFiles,
+    const std::vector<std::string> libs,
     const std::string main,
     const std::string includePath,
     const std::string libPath
@@ -128,7 +128,7 @@ int compileBinary
         command.append(" " + lib);
 
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -149,7 +149,7 @@ int compileBinary
 
 int archiveStatic
 (
-    const std::vector<std::string> objFiles, 
+    const std::vector<std::string> objFiles,
     const std::string main
 )
 {
@@ -161,7 +161,7 @@ int archiveStatic
         command.append(" " + obj);
 
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     int result = std::system(command.c_str());
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -182,7 +182,7 @@ int archiveStatic
 
 void clean
 (
-    std::string binPath, 
+    std::string binPath,
     std::string objPath
 )
 {
@@ -197,8 +197,8 @@ void clean
 
 void run
 (
-    const std::string option, 
-    const std::string name, 
+    const std::string option,
+    const std::string name,
     const std::string type
 )
 {
@@ -213,7 +213,7 @@ void run
     #elif __linux__
         std::string command = "./bin/" + option + "/" + name;
     #endif
-    
+
     if (std::system(command.c_str()))
     {
         std::cerr << color(Red, true) << "Program returned an error" << color(Default)  << std::endl;
@@ -224,10 +224,10 @@ void run
 
 void build
 (
-    const std::string option, 
+    const std::string option,
     const std::string name,
-    const std::string type, 
-    const std::string cc, 
+    const std::string type,
+    const std::string cc,
     const std::vector<std::string> ldflags,
     const std::vector<std::string> libs,
     std::string binPath,
@@ -256,7 +256,7 @@ void build
         std::cout << color(Gray) << binPath << " directory not found. Creating..." << color(Default) << std::endl;
         std::filesystem::create_directories(binPath);
     }
-    
+
     std::map<std::string, std::chrono::_V2::system_clock::time_point> objTime;
 
     if (!std::filesystem::exists(objPath))
@@ -300,8 +300,8 @@ void build
 
     if (!std::filesystem::exists(libPath))
     {
-        std::cout << color(Red, true) << libPath << " directory not found" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        std::cout << color(Red, true) << libPath << " directory not found. Creating..." << color(Default) << std::endl;
+        std::filesystem::create_directories(libPath);
     }
 
     std::vector<std::string> libFiles;
@@ -436,7 +436,7 @@ void build
             }
         }
     }
-    
+
     if (anyFilesBuilt || !std::filesystem::exists(main))
     {
         if (type == "lib")
@@ -473,7 +473,7 @@ std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[],
 {
     int optionIndex = 0; // 0 = none / unknown, otherwise j+1 (matches options vector)
     int release = 0;     // 0 = debug (default), 1 = release
-    bool threads = false; 
+    bool threads = false;
     int arch = 0;        // 0 = x64 (default), 1 = x32, 2 = arm64
 
     bool anyFlagSeen = false;
@@ -595,7 +595,7 @@ int main(int argc, char *argv[])
                 std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
                 return EXIT_FAILURE;
             }
-            
+
             clean(buildFile.getBinPath(), buildFile.getObjPath());
             break;
         }
@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
                 if (hc == 0)
                 {
                     hc = 1;
-                }   
+                }
                 maxThreadsLocal = static_cast<size_t>(hc);
             }
 
@@ -642,9 +642,9 @@ int main(int argc, char *argv[])
                 std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
                 return EXIT_FAILURE;
             }
-            
-            run(release ? "release" : "debug", 
-                buildFile.getName(), 
+
+            run(release ? "release" : "debug",
+                buildFile.getName(),
                 buildFile.getType());
 
             break;

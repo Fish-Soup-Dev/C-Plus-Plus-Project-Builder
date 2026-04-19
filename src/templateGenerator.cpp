@@ -39,7 +39,7 @@ int MakeProject()
 
     // --------------------------------
 
-    std::cout << "? C++ Version [89, 03, 11, 14, 17, 20] " << color(Blue) << "> " << color(Default);
+    std::cout << "? C++ Version [98, 03, 11, 14, 17, 20, 23, 26] " << color(Blue) << "> " << color(Default);
     std::string version;
     std::getline(std::cin, version);
 
@@ -72,6 +72,12 @@ int MakeProject()
         break;
     case 20:
         versionName = "-std=c++20";
+        break;
+    case 23:
+        versionName = "-std=c++23";
+        break;
+    case 26:
+        versionName = "-std=c++26";
         break;
     }
 
@@ -143,7 +149,7 @@ int MakeProject()
             cdefsD = "\"-DDEBUG\"";
         }
         break;
-    
+
     default:
         break;
     }

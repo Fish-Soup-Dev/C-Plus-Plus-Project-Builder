@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include "toml11/toml.hpp"
+#include "../include/toml11/toml.hpp"
 
 class BuildFileLoader
 {
