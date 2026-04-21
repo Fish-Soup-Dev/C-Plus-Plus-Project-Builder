@@ -1,4 +1,4 @@
-#define VERSION "0.6.14"
+#define VERSION "0.6.15"
 
 #include <iostream>
 #include <filesystem>
@@ -300,7 +300,7 @@ void build
 
     if (!std::filesystem::exists(libPath))
     {
-        std::cout << color(Red, true) << libPath << " directory not found. Creating..." << color(Default) << std::endl;
+        std::cout << color(Gray) << libPath << " directory not found. Creating..." << color(Default) << std::endl;
         std::filesystem::create_directories(libPath);
     }
 
