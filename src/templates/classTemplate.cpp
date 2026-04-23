@@ -9,22 +9,16 @@ R"(#ifndef )" + classNameUpper + R"(_HPP
 class )" + className + R"(
 {
 public:
-    )" + className + R"(()
-    {
+    )" + className + R"(();
 
-    }
-
-    ~)" + className + R"(()
-    {
-
-    }
+    ~)" + className + R"(();
 
     // more stuff here
 
 private:
     // stuff go here
 
-}
+};
 #endif)";
 }
 

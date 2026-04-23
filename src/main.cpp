@@ -1,4 +1,4 @@
-#define VERSION "0.7.1"
+#define VERSION "0.7.2"
 
 #include <iostream>
 #include <filesystem>
