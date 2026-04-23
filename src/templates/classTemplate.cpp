@@ -25,7 +25,7 @@ private:
 std::string classTemplate(const std::string className)
 {
     return
-R"(#include ")" + className + R"(.h"
+R"(#include ")" + className + R"(.hpp"
 
 )" + className + R"(::)" + className + R"(()
 {
