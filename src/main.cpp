@@ -1,4 +1,4 @@
-#define VERSION "0.6.15"
+#define VERSION "0.6.18"
 
 #include <iostream>
 #include <filesystem>
@@ -147,11 +147,7 @@ int compileBinary
     return true;
 }
 
-int archiveStatic
-(
-    const std::vector<std::string> objFiles,
-    const std::string main
-)
+int archiveStatic(const std::vector<std::string> objFiles, const std::string main)
 {
     std::string command = "ar rcs ";
 
@@ -180,38 +176,26 @@ int archiveStatic
     return true;
 }
 
-void clean
-(
-    std::string binPath,
-    std::string objPath
-)
+void run(bool option, BuildFileLoader& file)
 {
-    std::filesystem::remove_all(binPath);
-    std::cout << color(Gray) << "deleted " << binPath << color(Default) << std::endl;
+    if (!file.isFound())
+    {
+        std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
-    std::filesystem::remove_all(objPath);
-    std::cout << color(Gray) << "deleted " << objPath << color(Default) << std::endl;
-
-    std::cout << color(Green) << "Project cleaned" << color(Default) << std::endl;
-}
-
-void run
-(
-    const std::string option,
-    const std::string name,
-    const std::string type
-)
-{
-    if (type != "program")
+    if (file.getType() != "program")
     {
         std::cerr << color(Red) << "Error can only run programs" << color(Default) << std::endl;
         exit(EXIT_FAILURE);
     }
 
+    std::string optionString = option ? "relesse" : "debug";
+
     #ifdef _WIN32
-        std::string command = ".\\bin\\" + option + "\\" + name + ".exe";
+        std::string command = ".\\bin\\" + optionString + "\\" + file.getName() + ".exe";
     #elif __linux__
-        std::string command = "./bin/" + option + "/" + name;
+        std::string command = "./bin/" + optionString + "/" + file.getName();
     #endif
 
     if (std::system(command.c_str()))
@@ -220,253 +204,6 @@ void run
     }
 
     DEBUG_PRINT("Command was: " + command);
-}
-
-void build
-(
-    const std::string option,
-    const std::string name,
-    const std::string type,
-    const std::string cc,
-    const std::vector<std::string> ldflags,
-    const std::vector<std::string> libs,
-    std::string binPath,
-    std::string objPath,
-    std::vector<std::string> cdefs,
-    std::vector<std::string> cflags,
-    const std::string srcPath,
-    const std::string includePath,
-    const std::string libPath,
-    size_t maxThreads
-)
-{
-    if (option == "release")
-    {
-        binPath += "/release";
-        objPath += "/release";
-    }
-    else
-    {
-        binPath += "/debug";
-        objPath += "/debug";
-    }
-
-    if (!std::filesystem::exists(binPath))
-    {
-        std::cout << color(Gray) << binPath << " directory not found. Creating..." << color(Default) << std::endl;
-        std::filesystem::create_directories(binPath);
-    }
-
-    std::map<std::string, std::chrono::_V2::system_clock::time_point> objTime;
-
-    if (!std::filesystem::exists(objPath))
-    {
-        std::cout << color(Gray) << objPath << " directory not found. Creating..." << color(Default) << std::endl;
-        std::filesystem::create_directories(objPath);
-    }
-    else // get when obj files where edited
-    {
-        for (const auto& entry : std::filesystem::directory_iterator(objPath))
-        {
-            if (!entry.is_directory() && entry.path().extension() == ".o")
-            {
-                objTime[entry.path().stem().string()] = fileLastWriteTime(entry.path().string());
-            }
-        }
-    }
-
-    std::map<std::string, std::chrono::_V2::system_clock::time_point> srcTime;
-
-    std::vector<std::string> cppFiles;
-    std::vector<std::string> objFiles;
-
-    if (!std::filesystem::exists(srcPath))
-    {
-        std::cout << color(Red, true) << srcPath << " directory not found" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    else
-    {
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath))
-        {
-            if (!entry.is_directory() && (entry.path().extension() == ".cpp" || entry.path().extension() == ".c"))
-            {
-                cppFiles.push_back(entry.path().string());
-                objFiles.push_back(objPath + "/" + entry.path().stem().string() + ".o");
-                srcTime[entry.path().stem().string()] = fileLastWriteTime(entry.path().string());
-            }
-        }
-    }
-
-    if (!std::filesystem::exists(libPath))
-    {
-        std::cout << color(Gray) << libPath << " directory not found. Creating..." << color(Default) << std::endl;
-        std::filesystem::create_directories(libPath);
-    }
-
-    std::vector<std::string> libFiles;
-
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(libPath))
-        if (!entry.is_directory() && entry.path().extension() == ".a")
-            libFiles.push_back(libPath + "/" + entry.path().filename().string());
-
-    std::string main = binPath + "/" + name;
-
-    #ifdef _WIN32
-        if (type == "program")
-            main += ".exe";
-        else if (type == "shared")
-            main += ".dll";
-        else
-            main += ".lib";
-
-        std::string main2 = binPath + "/" + name + "dll.lib";
-    #elif __linux__
-        if (type == "shared")
-            main += ".so";
-        else if (type != "program")
-            main += ".a";
-
-        std::string main2 = binPath + "/" + name + "so.a";
-    #endif
-
-    if (type == "shared")
-        cflags.push_back("-Wl,--out-implib," + main2);
-
-    std::vector<std::string> filesToRecompile;
-    std::vector<std::string> filesToRecompile2;
-
-    if (!cppFiles.empty())
-    {
-        for (size_t i = 0; i < cppFiles.size(); i++)
-        {
-            std::string fileName = std::filesystem::path(cppFiles[i]).stem().string();
-            auto cppTimePoint = srcTime[fileName];
-            bool objFound = false;
-
-            // Check if the corresponding object file exists
-            auto objIt = objTime.find(fileName);
-            if (objIt != objTime.end())
-            {
-                auto objTimePoint = objIt->second;
-                if (cppTimePoint > objTimePoint)
-                {
-                    filesToRecompile.push_back(cppFiles[i]);
-                    filesToRecompile2.push_back(objFiles[i]);
-                }
-                objFound = true;
-            }
-
-            if (!objFound)
-            {
-                filesToRecompile.push_back(cppFiles[i]);
-                filesToRecompile2.push_back(objFiles[i]);
-            }
-        }
-    }
-    else
-    {
-        std::cout << color(Red, true) << "No C++ source files found" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    bool anyFilesBuilt = false;
-
-    auto buildStart = std::chrono::high_resolution_clock::now();
-
-    if (!filesToRecompile.empty())
-    {
-        std::cout << "Starting build " << type << " " << option << "..." << std::endl;
-
-        if (maxThreads > 0)
-        {
-            std::vector<std::thread> workers;
-            std::atomic<bool> failed(false);
-
-            for (size_t i = 0; i < filesToRecompile.size(); i++)
-            {
-                // copy parameters for thread
-                std::string srcFile = filesToRecompile[i];
-                std::string objFile = filesToRecompile2[i];
-                auto cc_copy = cc;
-                auto cflags_copy = cflags;
-                auto cdefs_copy = cdefs;
-                auto include_copy = includePath;
-
-                workers.emplace_back([cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy, &failed]() {
-                    if (failed.load())
-                        return;
-
-                    if (!compileObject(cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy))
-                        failed.store(true);
-                });
-
-                // throttle threads: when we reach max, join the oldest one
-                if (workers.size() >= maxThreads)
-                {
-                    workers.front().join();
-                    workers.erase(workers.begin());
-                    if (failed.load())
-                        break;
-                }
-            }
-
-            // join remaining workers
-            for (auto &t : workers)
-                t.join();
-
-            if (failed.load())
-            {
-                std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
-                exit(EXIT_FAILURE);
-            }
-
-            anyFilesBuilt = true;
-        }
-        else
-        {
-            for (size_t i = 0; i < filesToRecompile.size(); i++)
-            {
-                if (!compileObject(cc, cflags, cdefs, filesToRecompile2[i], filesToRecompile[i], includePath))
-                {
-                    std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
-                    exit(EXIT_FAILURE);
-                }
-                anyFilesBuilt = true;
-            }
-        }
-    }
-
-    if (anyFilesBuilt || !std::filesystem::exists(main))
-    {
-        if (type == "lib")
-        {
-            if (!archiveStatic(objFiles, main))
-            {
-                std::cout << color(Red, true) << "Error" << color(Default) << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        }
-        else
-        {
-            if (!compileBinary(cc, cflags, cdefs, objFiles, libFiles, libs, main, includePath, libPath))
-            {
-                std::cout << color(Red, true) << "Compile Binary Error" << color(Default) << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        }
-
-        anyFilesBuilt = true;
-
-        auto buildEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> buildDuration = buildEnd - buildStart;
-        std::cout << color(Green) << main << " done in " << buildDuration.count() << "s" << color(Default) << std::endl;
-    }
-
-    if (!anyFilesBuilt)
-    {
-        std::cout << color(Gray) << "No new changes detected" << color(Default) << std::endl;
-    }
 }
 
 std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[], std::vector<std::string> options)
@@ -546,6 +283,295 @@ std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[],
     return std::make_tuple(optionIndex, threads, release, arch);
 }
 
+void helpMenu()
+{
+    std::cout << "help - help menu" << std::endl;
+    std::cout << "version - app version" << std::endl;
+    std::cout << "clean - removes all temp folders and files in project" << std::endl;
+    std::cout << "build - builds project" << std::endl;
+    std::cout << "run - runs project" << std::endl;
+    std::cout << "new - makes files for a new project" << std::endl;
+}
+
+void appVersion()
+{
+    #ifdef _WIN32
+        std::cout << VERSION << " Windows build" << std::endl;
+    #elif __linux__
+        std::cout << VERSION << " Linux build" << std::endl;
+    #endif
+}
+
+void cleanProject(BuildFileLoader& file)
+{
+    if (!file.isFound())
+    {
+        std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+        return;
+    }
+
+    std::filesystem::remove_all(file.getBinPath());
+    std::cout << color(Gray) << "deleted " << file.getBinPath() << color(Default) << std::endl;
+
+    std::filesystem::remove_all(file.getObjPath());
+    std::cout << color(Gray) << "deleted " << file.getObjPath() << color(Default) << std::endl;
+
+    std::cout << color(Green) << "Project cleaned" << color(Default) << std::endl;
+}
+
+void build(bool option, BuildFileLoader& file, bool thredding)
+{
+    if (!file.isFound())
+    {
+        std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
+        return;
+    }
+
+    size_t maxThreads = 0;
+    if (thredding)
+    {
+        unsigned int hc = std::thread::hardware_concurrency();
+        if (hc == 0)
+        {
+            hc = 1;
+        }
+        maxThreads = static_cast<size_t>(hc);
+    }
+
+    std::string optionString = option ? "/relesse" : "/debug";
+    std::string binPath = file.getBinPath() + optionString;
+    std::string objPath = file.getObjPath() + optionString;
+    std::string srcPath = file.getSrcPath();
+    std::string libPath = file.getLibPath();
+    std::string projectMain = binPath + "/" + file.getName();
+    std::string projectLib = binPath + "/" + file.getName();
+    std::string projectType = file.getType();
+
+    std::vector<std::string> cflags = option ? file.getFlagsRelease() : file.getFlagsDebug();
+    std::vector<std::string> cdefs = option ? file.getDefsRelease() : file.getDefsDebug();
+    if (projectType == "shared")
+    {
+        cflags.push_back("-Wl,--out-implib," + projectLib);
+    }
+
+    // add exstension depending on type
+    #ifdef _WIN32
+        if (projectType == "program")
+            projectMain += ".exe";
+        else if (projectType == "shared")
+            projectMain += ".dll";
+        else
+            projectMain += ".lib";
+
+        projectLib += "dll.lib";
+    #elif __linux__
+        if (projectType == "shared")
+            projectMain += ".so";
+        else if (projectType != "program")
+            projectMain += ".a";
+
+        projectLib += "so.a";
+    #endif
+
+    if (!std::filesystem::exists(binPath))
+    {
+        std::cout << color(Gray) << binPath << " directory not found. Creating..." << color(Default) << std::endl;
+        std::filesystem::create_directories(binPath);
+    }
+
+    // create list of oject files and get time created
+    std::map<std::string, std::chrono::_V2::system_clock::time_point> objTime;
+
+    if (!std::filesystem::exists(objPath))
+    {
+        std::cout << color(Gray) << objPath << " directory not found. Creating..." << color(Default) << std::endl;
+        std::filesystem::create_directories(objPath);
+    }
+    else
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(objPath))
+        {
+            if (!entry.is_directory() && entry.path().extension() == ".o")
+            {
+                objTime[entry.path().stem().string()] = fileLastWriteTime(entry.path().string());
+            }
+        }
+    }
+
+    // load source files and time last edited to compare with object files
+    std::map<std::string, std::chrono::_V2::system_clock::time_point> srcTime;
+
+    std::vector<std::string> cppFiles;
+    std::vector<std::string> objFiles;
+
+    if (!std::filesystem::exists(srcPath))
+    {
+        std::cout << color(Red, true) << srcPath << " directory not found" << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // load paths and edit times of src files and create list of objects to be created?
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath))
+    {
+        if (!entry.is_directory() && (entry.path().extension() == ".cpp" || entry.path().extension() == ".c"))
+        {
+            cppFiles.push_back(entry.path().string());
+            objFiles.push_back(objPath + "/" + entry.path().stem().string() + ".o");
+            srcTime[entry.path().stem().string()] = fileLastWriteTime(entry.path().string());
+        }
+    }
+
+    if (cppFiles.empty())
+    {
+        std::cout << color(Red, true) << "No C++ source files found" << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // load lib files
+    if (!std::filesystem::exists(libPath))
+    {
+        std::cout << color(Gray) << libPath << " directory not found. Creating..." << color(Default) << std::endl;
+        std::filesystem::create_directories(libPath);
+    }
+
+    std::vector<std::string> libFiles;
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(libPath))
+    {
+        if (!entry.is_directory() && entry.path().extension() == ".a")
+        {
+            libFiles.push_back(libPath + "/" + entry.path().filename().string());
+        }
+    }
+
+    // not list of all files but list of files deemed to be recompiled
+    std::vector<std::string> sourceFiles;
+    std::vector<std::string> objectFiles;
+
+    for (size_t i = 0; i < cppFiles.size(); i++)
+    {
+        std::string fileName = std::filesystem::path(cppFiles[i]).stem().string();
+        auto cppTimePoint = srcTime[fileName];
+        bool objFound = false;
+
+        // Check if the corresponding object file exists
+        auto objIt = objTime.find(fileName);
+        if (objIt != objTime.end())
+        {
+            auto objTimePoint = objIt->second;
+            if (cppTimePoint > objTimePoint)
+            {
+                sourceFiles.push_back(cppFiles[i]);
+                objectFiles.push_back(objFiles[i]);
+            }
+            objFound = true;
+        }
+
+        if (!objFound)
+        {
+            sourceFiles.push_back(cppFiles[i]);
+            objectFiles.push_back(objFiles[i]);
+        }
+    }
+
+    bool anyFilesBuilt = false;
+
+    auto buildStart = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Starting build " << projectType << " " << (option ? "relesse" : "debug") << "..." << std::endl;
+
+    if (maxThreads > 0) // multi thread work
+    {
+        std::vector<std::thread> workers;
+        std::atomic<bool> failed(false);
+
+        for (size_t i = 0; i < sourceFiles.size(); i++)
+        {
+            // copy parameters for thread
+            std::string srcFile = sourceFiles[i];
+            std::string objFile = objectFiles[i];
+            auto cc_copy = file.getCompiler();
+            auto cflags_copy = cflags;
+            auto cdefs_copy = cdefs;
+            auto include_copy = file.getIncludePath();
+
+            workers.emplace_back([cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy, &failed]()
+            {
+                if (failed.load())
+                    return;
+
+                if (!compileObject(cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy))
+                    failed.store(true);
+            });
+
+            // throttle threads: when we reach max, join the oldest one
+            if (workers.size() >= maxThreads)
+            {
+                workers.front().join();
+                workers.erase(workers.begin());
+                if (failed.load())
+                    break;
+            }
+
+            anyFilesBuilt = true;
+        }
+
+        // join remaining workers
+        for (auto &t : workers)
+            t.join();
+
+        if (failed.load())
+        {
+            std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+    else // single thread work
+    {
+        for (size_t i = 0; i < sourceFiles.size(); i++)
+        {
+            if (!compileObject(file.getCompiler(), cflags, cdefs, objectFiles[i], sourceFiles[i], file.getIncludePath()))
+            {
+                std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            anyFilesBuilt = true;
+        }
+    }
+
+    // if we built files or the binarry is missing remake it
+    if (anyFilesBuilt || !std::filesystem::exists(projectMain))
+    {
+        if (projectType == "lib")
+        {
+            if (!archiveStatic(objFiles, projectMain))
+            {
+                std::cout << color(Red, true) << "Error" << color(Default) << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else
+        {
+            if (!compileBinary(file.getCompiler(), cflags, cdefs, objFiles, libFiles, file.getLibs(), projectMain, file.getIncludePath(), libPath))
+            {
+                std::cout << color(Red, true) << "Compile Binary Error" << color(Default) << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        anyFilesBuilt = true;
+
+        auto buildEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> buildDuration = buildEnd - buildStart;
+        std::cout << color(Green) << projectMain << " done in " << buildDuration.count() << "s" << color(Default) << std::endl;
+    }
+
+    if (!anyFilesBuilt)
+    {
+        std::cout << color(Gray) << "No new changes detected" << color(Default) << std::endl;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
@@ -571,91 +597,27 @@ int main(int argc, char *argv[])
 
     switch (option)
     {
-        case 1:
-            std::cout << "help - help menu" << std::endl;
-            std::cout << "version - app version" << std::endl;
-            std::cout << "clean - removes all temp folders and files in project" << std::endl;
-            std::cout << "build - builds project" << std::endl;
-            std::cout << "run - runs project" << std::endl;
-            std::cout << "new - makes files for a new project" << std::endl;
-            break;
-
-        case 2:
-            #ifdef _WIN32
-                std::cout << VERSION << " Windows build" << std::endl;
-            #elif __linux__
-                std::cout << VERSION << " Linux build" << std::endl;
-            #endif
-            break;
-
-        case 3:
-        {
-            if (!buildFile.isFound())
-            {
-                std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
-                return EXIT_FAILURE;
-            }
-
-            clean(buildFile.getBinPath(), buildFile.getObjPath());
-            break;
-        }
-        case 4:
-        {
-            if (!buildFile.isFound())
-            {
-                std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
-                return EXIT_FAILURE;
-            }
-
-            size_t maxThreadsLocal = 0;
-            if (threads)
-            {
-                unsigned int hc = std::thread::hardware_concurrency();
-                if (hc == 0)
-                {
-                    hc = 1;
-                }
-                maxThreadsLocal = static_cast<size_t>(hc);
-            }
-
-            build(release ? "release" : "debug",
-                buildFile.getName(),
-                buildFile.getType(),
-                buildFile.getCompiler(),
-                buildFile.getLdFlags(),
-                buildFile.getLibs(),
-                buildFile.getBinPath(),
-                buildFile.getObjPath(),
-                release ? buildFile.getDefsRelease() : buildFile.getDefsDebug(),
-                release ? buildFile.getFlagsRelease(): buildFile.getFlagsDebug(),
-                buildFile.getSrcPath(),
-                buildFile.getIncludePath(),
-                buildFile.getLibPath(),
-                maxThreadsLocal );
-            break;
-        }
-
-        case 5:
-        {
-            if (!buildFile.isFound())
-            {
-                std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
-                return EXIT_FAILURE;
-            }
-
-            run(release ? "release" : "debug",
-                buildFile.getName(),
-                buildFile.getType());
-
-            break;
-        }
-        case 6:
-            MakeProject();
-            break;
-
-        default:
-            std::cerr << color(Red, true) << "Unknown option. Try (help)" << color(Default) << std::endl;
-            return EXIT_FAILURE;
+    case 1:
+        helpMenu();
+        break;
+    case 2:
+        appVersion();
+        break;
+    case 3:
+        cleanProject(buildFile);
+        break;
+    case 4:
+        build(release ? true : false, buildFile, threads);
+        break;
+    case 5:
+        run(release ? true : false, buildFile);
+        break;
+    case 6:
+        MakeProject();
+        break;
+    default:
+        std::cerr << color(Red, true) << "Unknown option. Try (help)" << color(Default) << std::endl;
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
