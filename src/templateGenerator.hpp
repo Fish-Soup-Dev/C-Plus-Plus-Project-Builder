@@ -1,6 +1,7 @@
 #ifndef TEMPLATEGENERATOR_HPP
 #define TEMPLATEGENERATOR_HPP
 
-int MakeProject();
+void makeProject();
+void makeClass();
 
 #endif

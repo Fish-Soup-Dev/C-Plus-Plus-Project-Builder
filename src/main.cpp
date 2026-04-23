@@ -1,4 +1,4 @@
-#define VERSION "0.6.18"
+#define VERSION "0.7.1"
 
 #include <iostream>
 #include <filesystem>
@@ -580,7 +580,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    std::vector<std::string> options = {"help", "version", "clean", "build", "run", "new"};
+    std::vector<std::string> options = {"help", "version", "clean", "build", "run", "new", "class"};
 
     // record main thread id so workers can detect they're in a thread
     g_mainThreadId = std::this_thread::get_id();
@@ -613,7 +613,10 @@ int main(int argc, char *argv[])
         run(release ? true : false, buildFile);
         break;
     case 6:
-        MakeProject();
+        makeProject();
+        break;
+    case 7:
+        makeClass();
         break;
     default:
         std::cerr << color(Red, true) << "Unknown option. Try (help)" << color(Default) << std::endl;

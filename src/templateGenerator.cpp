@@ -1,5 +1,6 @@
 #include "templateGenerator.hpp"
 
+#include <cstdlib>
 #include <iostream>
 #include <filesystem>
 #include <algorithm>
@@ -11,8 +12,9 @@
 #include "templates/programTemplate.hpp"
 #include "templates/sharedLibTemplate.hpp"
 #include "templates/staticLibTemplate.hpp"
+#include "templates/classTemplate.hpp"
 
-int MakeProject()
+void makeProject()
 {
     // --------------------------------
     std::cout << "? Project name " << color(Blue) << "> " << color(Default);
@@ -22,7 +24,7 @@ int MakeProject()
     if (name.empty())
     {
         std::cout << color(Red) << "Error no name given" << color(Default) << std::endl;
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
     // --------------------------------
@@ -34,7 +36,7 @@ int MakeProject()
     if (type.empty())
     {
         std::cout << color(Red) << "Error no type given" << color(Default) << std::endl;
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
     // --------------------------------
@@ -46,7 +48,7 @@ int MakeProject()
     if (version.empty())
     {
         std::cout << color(Red) << "Error no version given" << color(Default) << std::endl;
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
     // --------------------------------
@@ -159,6 +161,31 @@ int MakeProject()
     buildFile.close();
 
     std::cout << color(Green) << "Done." << color(Default) << std::endl;
+}
 
-    return 0;
+void makeClass()
+{
+    // --------------------------------
+    std::cout << "? Class name " << color(Blue) << "> " << color(Default);
+    std::string name;
+    std::getline(std::cin, name);
+
+    if (name.empty())
+    {
+        std::cout << color(Red) << "Error no name given" << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string nameupper = name;
+    std::transform(nameupper.begin(), nameupper.end(), nameupper.begin(), ::toupper);
+
+    std::ofstream headderClassFile("./src/" + name + ".hpp");
+    headderClassFile << classHeaderTemplate(nameupper, name);
+    headderClassFile.close();
+
+    std::ofstream classFile("./src/" + name + ".cpp");
+    classFile << classTemplate(name);
+    classFile.close();
+
+    std::cout << color(Green) << "Done." << color(Default) << std::endl;
 }
