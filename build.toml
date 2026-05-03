@@ -5,6 +5,11 @@ type = "program"
 [compiler]
 cc = "g++"
 ldflags = []
+
+[compiler.windows]
+libs = []
+
+[compiler.linux]
 libs = []
 
 [compiler.release]

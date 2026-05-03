@@ -18,6 +18,11 @@ type = ")" + projectType + R"("
 [compiler]
 cc = "g++"
 ldflags = []
+
+[compiler.windows]
+libs = []
+
+[compiler.linux]
 libs = []
 
 [compiler.release]
