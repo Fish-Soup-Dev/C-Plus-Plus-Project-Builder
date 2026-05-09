@@ -56,6 +56,12 @@ cpb new
 
 ⚙️ **Flexible Configuration** - Centralized `build.toml` file for all compiler settings, flags, and dependencies
 
+🔢 **Automatic Version Management** - Semantic versioning with automatic patch incrementing on debug builds
+- Manages major.minor.patch versions directly in build.toml
+- Auto-increment patch version with each debug build
+- Manual commands to bump minor or major versions
+- Automatic version embedding in compiled binaries
+
 ## Usage
 
 ### Basic Commands
@@ -64,9 +70,12 @@ cpb new
 cpb help              # Display help menu
 cpb version           # Show application version
 cpb new               # Create a new project with templates
-cpb build             # Build the project (debug by default)
+cpb class             # Create a new class template
+cpb build             # Build the project (debug by default, auto-bumps patch version)
 cpb run               # Run the built executable
 cpb clean             # Remove all temporary build files and directories
+cpb minor             # Increment minor version (resets patch to 0)
+cpb major             # Increment major version (resets minor and patch to 0)
 ```
 
 ### Build Flags
@@ -101,6 +110,7 @@ Edit `build.toml` in your project root to configure:
 [project]
 name = "my_project"
 type = "program"          # Options: program, static, shared
+version = "1.0.0"         # Semantic versioning (major.minor.patch)
 
 [compiler]
 cc = "g++"
@@ -126,6 +136,51 @@ include = "./include"
 lib = "./lib"
 bin = "./bin"
 obj = "./obj"
+```
+
+## Version Management
+
+CPB includes automatic semantic versioning support. Version numbers are stored in `build.toml` and embedded in your compiled binaries via a `-DVERSION` compiler define.
+
+### How Versioning Works
+
+**Version Format:** `major.minor.patch` (e.g., `1.2.3`)
+
+**Debug Builds:** Automatically increment the patch version each time you run `cpb build` in debug mode (default). This ensures you can track development builds.
+
+**Release Builds:** Do not auto-increment. Use explicit version bump commands before releases.
+
+### Version Commands
+
+```bash
+# View current version
+cpb version
+
+# Increment patch version (e.g., 1.2.3 → 1.2.4)
+cpb build              # Auto-bumps patch in debug mode
+cpb build -r           # Release build (no auto-bump)
+
+# Increment minor version and reset patch (e.g., 1.2.3 → 1.3.0)
+cpb minor
+
+# Increment major version and reset minor/patch (e.g., 1.2.3 → 2.0.0)
+cpb major
+```
+
+### Using Version in Code
+
+The version is automatically compiled into your binary as a `VERSION` define. Access it in your C++ code:
+
+```cpp
+#include <iostream>
+
+int main()
+{
+    #ifdef VERSION
+        std::cout << "Application version: " << VERSION << std::endl;
+    #endif
+    return 0;
+}
 ```
 
 ## Performance Comparison

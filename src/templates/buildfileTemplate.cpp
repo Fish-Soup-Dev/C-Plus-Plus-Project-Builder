@@ -14,6 +14,7 @@ std::string buildfile_template
 R"([project]
 name = ")" + projectName + R"("
 type = ")" + projectType + R"("
+version = "0.0.0"
 
 [compiler]
 cc = "g++"

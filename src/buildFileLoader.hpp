@@ -29,9 +29,15 @@ public:
     std::vector<std::string> getFlagsRelease();
     std::vector<std::string> getFlagsDebug();
 
+    std::string getVersion();
+    void bumpPatchVersion();
+    void bumpMinorVersion();
+    void bumpMajorVersion();
+
 private:
     bool m_isFile;
     toml::value m_data;
+    std::filesystem::path m_file;
 
     std::filesystem::path findBuildFile(const std::filesystem::path currentPath)
     {

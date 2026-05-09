@@ -1,6 +1,14 @@
 [project]
 name = "cpb"
 type = "program"
+version = "0.8.2"
+
+[paths]
+src = "./src"
+bin = "./bin"
+include = "./include"
+lib = "./lib"
+obj = "./obj"
 
 [compiler]
 cc = "g++"
@@ -19,11 +27,4 @@ cdefs = ["-DNDEBUG"]
 [compiler.debug]
 cflags = ["-g", "-Wall", "-std=c++20", "-pthread", "-static"]
 cdefs = ["-DDEBUG"]
-
-[paths]
-src = "./src"
-include = "./include"
-lib = "./lib"
-bin = "./bin"
-obj = "./obj"
 

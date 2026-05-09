@@ -8,15 +8,15 @@
 BuildFileLoader::BuildFileLoader() : m_isFile(true)
 {
     std::filesystem::path currentPath = std::filesystem::current_path();
-    std::filesystem::path file = findBuildFile(currentPath);
+    m_file = findBuildFile(currentPath);
 
-    if (file.empty())
+    if (m_file.empty())
     {
         m_isFile = false;
     }
     else
     {
-        m_data = toml::parse(file, toml::spec::v(1,1,0));
+        m_data = toml::parse(m_file, toml::spec::v(1,1,0));
     }
 }
 
@@ -141,4 +141,107 @@ std::vector<std::string> BuildFileLoader::getFlagsRelease()
 std::vector<std::string> BuildFileLoader::getFlagsDebug()
 {
     return toml::find<std::vector<std::string>>(m_data, "compiler", "debug", "cflags");
+}
+
+std::string BuildFileLoader::getVersion()
+{
+    m_data = toml::parse(m_file, toml::spec::v(1,1,0));
+    return toml::find<std::string>(m_data, "project", "version");
+}
+
+// version format is major.minor.patch
+void BuildFileLoader::bumpPatchVersion()
+{
+    std::string version = getVersion();
+    size_t firstDot = version.find('.');
+    size_t secondDot = version.find('.', firstDot + 1);
+
+    if (firstDot == std::string::npos || secondDot == std::string::npos)
+    {
+        std::cerr << color(Red) << "Version format is incorrect" << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    int major = std::stoi(version.substr(0, firstDot));
+    int minor = std::stoi(version.substr(firstDot + 1, secondDot - firstDot - 1));
+    int patch = std::stoi(version.substr(secondDot + 1));
+
+    patch++;
+
+    version = std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch);
+
+    // update the version in the toml data
+    toml::find(m_data, "project")["version"] = version;
+
+    // write the updated toml data back to the file
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path file = findBuildFile(currentPath);
+    std::ofstream ofs(file);
+    ofs << m_data;
+    ofs.close();
+}
+
+void BuildFileLoader::bumpMinorVersion()
+{
+    std::string version = getVersion();
+    size_t firstDot = version.find('.');
+    size_t secondDot = version.find('.', firstDot + 1);
+
+    if (firstDot == std::string::npos || secondDot == std::string::npos)
+    {
+        std::cerr << color(Red) << "Version format is incorrect" << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    int major = std::stoi(version.substr(0, firstDot));
+    int minor = std::stoi(version.substr(firstDot + 1, secondDot - firstDot - 1));
+    int patch = std::stoi(version.substr(secondDot + 1));
+
+    minor++;
+    patch = 0;
+
+    version = std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch);
+
+    // update the version in the toml data
+    toml::find(m_data, "project")["version"] = version;
+
+    // write the updated toml data back to the file
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path file = findBuildFile(currentPath);
+    std::ofstream ofs(file);
+    ofs << m_data;
+    ofs.close();
+}
+
+void BuildFileLoader::bumpMajorVersion()
+{
+    std::string version = getVersion();
+    size_t firstDot = version.find('.');
+    size_t secondDot = version.find('.', firstDot + 1);
+
+    if (firstDot == std::string::npos || secondDot == std::string::npos)
+    {
+        std::cerr << color(Red) << "Version format is incorrect" << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    int major = std::stoi(version.substr(0, firstDot));
+    int minor = std::stoi(version.substr(firstDot + 1, secondDot - firstDot - 1));
+    int patch = std::stoi(version.substr(secondDot + 1));
+
+    major++;
+    minor = 0;
+    patch = 0;
+
+    version = std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch);
+
+    // update the version in the toml data
+    toml::find(m_data, "project")["version"] = version;
+
+    // write the updated toml data back to the file
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path file = findBuildFile(currentPath);
+    std::ofstream ofs(file);
+    ofs << m_data;
+    ofs.close();
 }

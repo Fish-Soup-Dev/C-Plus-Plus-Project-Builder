@@ -1,5 +1,3 @@
-#define VERSION "0.7.6"
-
 #include <iostream>
 #include <filesystem>
 #include <cstdlib>
@@ -22,6 +20,10 @@
     #define DEBUG_PRINT(x) std::cout << "DEBUG: " << x << std::endl;
 #else
     #define DEBUG_PRINT(x)
+#endif
+
+#ifndef VERSION
+    #define VERSION "version not set"
 #endif
 
 // main thread id used to detect worker threads
@@ -288,9 +290,11 @@ void helpMenu()
     std::cout << "help - help menu" << std::endl;
     std::cout << "version - app version" << std::endl;
     std::cout << "clean - removes all temp folders and files in project" << std::endl;
-    std::cout << "build - builds project" << std::endl;
+    std::cout << "build - builds project (if debug then bumps patch version)" << std::endl;
     std::cout << "run - runs project" << std::endl;
     std::cout << "new - makes files for a new project" << std::endl;
+    std::cout << "minor - bumps minor version" << std::endl;
+    std::cout << "major - bumps major version" << std::endl;
 }
 
 void appVersion()
@@ -349,6 +353,9 @@ void build(bool option, BuildFileLoader& file, bool thredding)
 
     std::vector<std::string> cflags = option ? file.getFlagsRelease() : file.getFlagsDebug();
     std::vector<std::string> cdefs = option ? file.getDefsRelease() : file.getDefsDebug();
+
+    cdefs.push_back("-DVERSION=\\\"" + file.getVersion() + "\\\"");
+
     if (projectType == "shared")
     {
         cflags.push_back("-Wl,--out-implib," + projectLib);
@@ -484,7 +491,7 @@ void build(bool option, BuildFileLoader& file, bool thredding)
 
     std::cout << "Starting build " << projectType << " " << (option ? "relesse" : "debug") << "..." << std::endl;
 
-    if (maxThreads > 0) // multi thread work
+    if (maxThreads > 0 && sourceFiles.size() > 0) // multi thread work
     {
         std::vector<std::thread> workers;
         std::atomic<bool> failed(false);
@@ -516,8 +523,6 @@ void build(bool option, BuildFileLoader& file, bool thredding)
                 if (failed.load())
                     break;
             }
-
-            anyFilesBuilt = true;
         }
 
         // join remaining workers
@@ -529,8 +534,10 @@ void build(bool option, BuildFileLoader& file, bool thredding)
             std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
             exit(EXIT_FAILURE);
         }
+
+        anyFilesBuilt = true;
     }
-    else // single thread work
+    else if (sourceFiles.size() > 0) // single thread work
     {
         for (size_t i = 0; i < sourceFiles.size(); i++)
         {
@@ -539,8 +546,9 @@ void build(bool option, BuildFileLoader& file, bool thredding)
                 std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);
             }
-            anyFilesBuilt = true;
         }
+
+        anyFilesBuilt = true;
     }
 
     // if we built files or the binarry is missing remake it
@@ -584,7 +592,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    std::vector<std::string> options = {"help", "version", "clean", "build", "run", "new", "class"};
+    std::vector<std::string> options = {"help", "version", "clean", "build", "run", "new", "class", "bump-minor", "bump-major"};
 
     // record main thread id so workers can detect they're in a thread
     g_mainThreadId = std::this_thread::get_id();
@@ -611,6 +619,10 @@ int main(int argc, char *argv[])
         cleanProject(buildFile);
         break;
     case 4:
+        if (!release)
+        {
+            buildFile.bumpPatchVersion();
+        }
         build(release ? true : false, buildFile, threads);
         break;
     case 5:
@@ -621,6 +633,12 @@ int main(int argc, char *argv[])
         break;
     case 7:
         makeClass();
+        break;
+    case 8:
+        buildFile.bumpMinorVersion();
+        break;
+    case 9:
+        buildFile.bumpMajorVersion();
         break;
     default:
         std::cerr << color(Red, true) << "Unknown option. Try (help)" << color(Default) << std::endl;
