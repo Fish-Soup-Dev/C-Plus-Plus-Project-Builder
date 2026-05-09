@@ -1,4 +1,4 @@
-#define VERSION "0.7.3"
+#define VERSION "0.7.5"
 
 #include <iostream>
 #include <filesystem>
@@ -338,7 +338,7 @@ void build(bool option, BuildFileLoader& file, bool thredding)
         maxThreads = static_cast<size_t>(hc);
     }
 
-    std::string optionString = option ? "/relesse" : "/debug";
+    std::string optionString = option ? "/release" : "/debug";
     std::string binPath = file.getBinPath() + optionString;
     std::string objPath = file.getObjPath() + optionString;
     std::string srcPath = file.getSrcPath();
@@ -356,6 +356,8 @@ void build(bool option, BuildFileLoader& file, bool thredding)
 
     // add exstension depending on type
     #ifdef _WIN32
+        std::vector<std::string> libList = file.getLibs(true);
+
         if (projectType == "program")
             projectMain += ".exe";
         else if (projectType == "shared")
@@ -365,6 +367,8 @@ void build(bool option, BuildFileLoader& file, bool thredding)
 
         projectLib += "dll.lib";
     #elif __linux__
+        std::vector<std::string> libList = file.getLibs(false);
+
         if (projectType == "shared")
             projectMain += ".so";
         else if (projectType != "program")
@@ -552,7 +556,7 @@ void build(bool option, BuildFileLoader& file, bool thredding)
         }
         else
         {
-            if (!compileBinary(file.getCompiler(), cflags, cdefs, objFiles, libFiles, file.getLibs(), projectMain, file.getIncludePath(), libPath))
+            if (!compileBinary(file.getCompiler(), cflags, cdefs, objFiles, libFiles, libList, projectMain, file.getIncludePath(), libPath))
             {
                 std::cout << color(Red, true) << "Compile Binary Error" << color(Default) << std::endl;
                 exit(EXIT_FAILURE);

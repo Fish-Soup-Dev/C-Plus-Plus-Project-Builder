@@ -23,7 +23,7 @@ public:
     std::string getLibPath();
 
     std::vector<std::string> getLdFlags();
-    std::vector<std::string> getLibs();
+    std::vector<std::string> getLibs(bool isWindows);
     std::vector<std::string> getDefsRelease();
     std::vector<std::string> getDefsDebug();
     std::vector<std::string> getFlagsRelease();

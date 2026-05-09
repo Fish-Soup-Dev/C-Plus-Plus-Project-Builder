@@ -111,9 +111,16 @@ std::vector<std::string> BuildFileLoader::getLdFlags()
     return toml::find<std::vector<std::string>>(m_data, "compiler", "ldflags");
 }
 
-std::vector<std::string> BuildFileLoader::getLibs()
+std::vector<std::string> BuildFileLoader::getLibs(bool isWindows)
 {
-    return toml::find<std::vector<std::string>>(m_data, "compiler", "libs");
+    if (isWindows)
+    {
+        return toml::find<std::vector<std::string>>(m_data, "compiler", "windows", "libs");
+    }
+    else
+    {
+        return toml::find<std::vector<std::string>>(m_data, "compiler", "linux", "libs");
+    }
 }
 
 std::vector<std::string> BuildFileLoader::getDefsRelease()
