@@ -1,13 +1,166 @@
-# cpb (c++ project builder)
-Simple command-line tool for building c++ projects using a build.toml file. Currently it can build a debug build and a release build with differing flags and defines. Now with multi threading built in. This is a work in progress.
+# CPB - C++ Project Builder
 
-## Uesage
-Download the repo and then open the folder and run "make release" to build
+A powerful, user-friendly command-line tool for building C++ projects with multi-threaded compilation, cross-platform support, and built-in project scaffolding. Define your build configuration once in `build.toml` and compile efficiently across different architectures and build types.
 
-Example Screenshot
+## Quick Start
 
+### Installation & Compilation
+
+```bash
+# Clone the repository
+git clone https://github.com/Fish-Soup-Dev/C-Plus-Plus-Project-Builder.git
+cd C-Plus-Plus-Project-Builder
+
+# Build in Release mode (optimized)
+make release
+
+# Or build in Debug mode (with debugging symbols)
+make debug
+
+# Binary will be available at: ./bin/cpb (Linux) or ./bin/cpb.exe (Windows)
+```
+
+### First Use: Create a New Project
+
+```bash
+# Generate a new project template
+cpb new
+
+# This creates a project structure with a build.toml configuration file
+```
+
+## Features
+
+✨ **Multi-Threaded Compilation** - Significantly faster builds by compiling multiple source files in parallel
+- Use the `-t` or `--threads` flag for parallel compilation (30% - 50% speedup on multi-core systems)
+
+🏗️ **Multiple Build Types**
+- Debug builds with full debugging symbols and warnings
+- Release builds with optimization flags (-O2)
+
+🎯 **Cross-Architecture Support**
+- x64 (default)
+- x32
+- ARM64
+
+📦 **Project Templates** - Quickly scaffold new projects with built-in templates for:
+- Programs/Executables
+- Static Libraries (.a / .lib)
+- Shared Libraries (.so / .dll)
+- Class templates
+- Build file templates
+
+🖥️ **Cross-Platform** - Works seamlessly on:
+- Linux
+- Windows
+
+⚙️ **Flexible Configuration** - Centralized `build.toml` file for all compiler settings, flags, and dependencies
+
+## Usage
+
+### Basic Commands
+
+```bash
+cpb help              # Display help menu
+cpb version           # Show application version
+cpb new               # Create a new project with templates
+cpb build             # Build the project (debug by default)
+cpb run               # Run the built executable
+cpb clean             # Remove all temporary build files and directories
+```
+
+### Build Flags
+
+```bash
+# Release vs Debug
+cpb build -r          # Build in Release mode (optimized, no debug symbols)
+cpb build -d          # Build in Debug mode (default, with debug symbols)
+cpb build --release   # Long form for Release
+cpb build --debug     # Long form for Debug
+
+# Multi-Threaded Compilation
+cpb build -t          # Build using multi-threaded compilation
+cpb build -t -r       # Multi-threaded Release build
+cpb build --threads   # Long form
+
+# Architecture Targeting
+cpb build -x64        # Build for 64-bit (default)
+cpb build -x32        # Build for 32-bit
+cpb build -arm64      # Build for ARM64
+cpb build --x64       # Long form
+cpb build --x32       # Long form
+cpb build --arm64     # Long form
+
+# Combining Flags
+cpb build -r -t -x64  # Release, multi-threaded, 64-bit
+cpb run -d            # Run debug build
+```
+
+### Project Configuration
+
+Edit `build.toml` in your project root to configure:
+
+```toml
+[project]
+name = "my_project"
+type = "program"          # Options: program, static, shared
+
+[compiler]
+cc = "g++"
+ldflags = []
+
+[compiler.windows]
+libs = []
+
+[compiler.linux]
+libs = []
+
+[compiler.release]
+cflags = ["-O2", "-std=c++20", "-pthread", "-static"]
+cdefs = ["-DNDEBUG"]
+
+[compiler.debug]
+cflags = ["-g", "-Wall", "-std=c++20", "-pthread", "-static"]
+cdefs = ["-DDEBUG"]
+
+[paths]
+src = "./src"
+include = "./include"
+lib = "./lib"
+bin = "./bin"
+obj = "./obj"
+```
+
+## Performance Comparison
+
+### Standard Build vs Multi-Threaded Build
+
+**Standard Compilation:**
 ![Screenshot](assets/screenshot1.png)
 
-speedup from using thread mode "-t"
-
+**Multi-Threaded Compilation (30% - 50% faster):**
 ![Screenshot](assets/screenshot2.png)
+
+## Project Structure
+
+```
+project-root/
+├── build.toml          # Build configuration file
+├── makefile            # For building CPB itself
+├── src/                # Source files (.cpp)
+├── include/            # Header files (.hpp)
+├── lib/                # Static libraries
+├── bin/                # Compiled binaries (generated)
+├── obj/                # Object files (generated)
+└── assets/             # Project assets
+```
+
+## Requirements
+
+- GCC/G++ (or compatible C++ compiler)
+- GNU Make
+- C++20 or later support
+
+## License
+
+See [LICENSE](LICENSE) file for details.
