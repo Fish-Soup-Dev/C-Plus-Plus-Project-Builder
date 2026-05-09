@@ -32,7 +32,7 @@ cpb new
 ## Features
 
 ✨ **Multi-Threaded Compilation** - Significantly faster builds by compiling multiple source files in parallel
-- Use the `-t` or `--threads` flag for parallel compilation (30% - 50% speedup on multi-core systems)
+- Use the `-t` or `-threads` flag for parallel compilation (30% - 50% speedup on multi-core systems)
 
 🏗️ **Multiple Build Types**
 - Debug builds with full debugging symbols and warnings
@@ -75,21 +75,18 @@ cpb clean             # Remove all temporary build files and directories
 # Release vs Debug
 cpb build -r          # Build in Release mode (optimized, no debug symbols)
 cpb build -d          # Build in Debug mode (default, with debug symbols)
-cpb build --release   # Long form for Release
-cpb build --debug     # Long form for Debug
+cpb build -release    # Long form for Release
+cpb build -debug      # Long form for Debug
 
 # Multi-Threaded Compilation
 cpb build -t          # Build using multi-threaded compilation
 cpb build -t -r       # Multi-threaded Release build
-cpb build --threads   # Long form
+cpb build -threads    # Long form
 
 # Architecture Targeting
 cpb build -x64        # Build for 64-bit (default)
 cpb build -x32        # Build for 32-bit
 cpb build -arm64      # Build for ARM64
-cpb build --x64       # Long form
-cpb build --x32       # Long form
-cpb build --arm64     # Long form
 
 # Combining Flags
 cpb build -r -t -x64  # Release, multi-threaded, 64-bit
@@ -140,20 +137,6 @@ obj = "./obj"
 
 **Multi-Threaded Compilation (30% - 50% faster):**
 ![Screenshot](assets/screenshot2.png)
-
-## Project Structure
-
-```
-project-root/
-├── build.toml          # Build configuration file
-├── makefile            # For building CPB itself
-├── src/                # Source files (.cpp)
-├── include/            # Header files (.hpp)
-├── lib/                # Static libraries
-├── bin/                # Compiled binaries (generated)
-├── obj/                # Object files (generated)
-└── assets/             # Project assets
-```
 
 ## Requirements
 

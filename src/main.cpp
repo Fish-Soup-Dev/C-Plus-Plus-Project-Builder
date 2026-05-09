@@ -1,4 +1,4 @@
-#define VERSION "0.7.5"
+#define VERSION "0.7.6"
 
 #include <iostream>
 #include <filesystem>
@@ -231,13 +231,13 @@ std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[],
         }
 
         // release/debug flags
-        if (arg == "-r" || arg == "--release")
+        if (arg == "-r" || arg == "-release")
         {
             release = 1;
             anyFlagSeen = true;
             continue;
         }
-        if (arg == "-d" || arg == "--debug")
+        if (arg == "-d" || arg == "-debug")
         {
             release = 0;
             anyFlagSeen = true;
@@ -245,7 +245,7 @@ std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[],
         }
 
         // thread flag
-        if (arg == "-t" || arg == "--threads")
+        if (arg == "-t" || arg == "-threads")
         {
             threads = true;
             anyFlagSeen = true;
@@ -253,19 +253,19 @@ std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[],
         }
 
         // arch flags
-        if (arg == "-x64" || arg == "--x64")
+        if (arg == "-x64")
         {
             arch = 0;
             anyFlagSeen = true;
             continue;
         }
-        if (arg == "-x32" || arg == "--x32")
+        if (arg == "-x32")
         {
             arch = 1;
             anyFlagSeen = true;
             continue;
         }
-        if (arg == "-arm64" || arg == "--arm64")
+        if (arg == "-arm64")
         {
             arch = 2;
             anyFlagSeen = true;
