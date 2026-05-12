@@ -26,8 +26,41 @@
     #define VERSION "version not set"
 #endif
 
-// main thread id used to detect worker threads
 static std::thread::id g_mainThreadId;
+
+enum class ProgramOption
+{
+    Help,
+    Version,
+    Clean,
+    Build,
+    Run,
+    New,
+    Class,
+    BumpMinor,
+    BumpMajor,
+    Unknown
+};
+
+std::vector<std::string> options = {
+    "help", 
+    "version", 
+    "clean", 
+    "build", 
+    "run", 
+    "new", 
+    "class", 
+    "bump-minor", 
+    "bump-major"
+};
+
+struct BuildOptions
+{
+    bool release = false;
+    bool threads = false;
+    int arch = 0; // 0 = x64, 1 = x32, 2 = arm64
+    ProgramOption option = ProgramOption::Unknown;
+};
 
 std::chrono::system_clock::time_point fileLastWriteTime(const std::string& filePath)
 {
@@ -178,7 +211,7 @@ int archiveStatic(const std::vector<std::string> objFiles, const std::string mai
     return true;
 }
 
-void run(bool option, BuildFileLoader& file)
+void run(BuildOptions& opts, BuildFileLoader& file)
 {
     if (!file.isFound())
     {
@@ -192,12 +225,14 @@ void run(bool option, BuildFileLoader& file)
         exit(EXIT_FAILURE);
     }
 
-    std::string optionString = option ? "relesse" : "debug";
+    std::string profile = opts.release ? "release" : "debug";
+    std::filesystem::path binPath = std::filesystem::path("bin") / profile / file.getName();
 
     #ifdef _WIN32
-        std::string command = ".\\bin\\" + optionString + "\\" + file.getName() + ".exe";
+        binPath.replace_extension(".exe");
+        std::string command = binPath.string();
     #elif __linux__
-        std::string command = "./bin/" + optionString + "/" + file.getName();
+        std::string command = "./" + binPath.string();
     #endif
 
     if (std::system(command.c_str()))
@@ -206,83 +241,6 @@ void run(bool option, BuildFileLoader& file)
     }
 
     DEBUG_PRINT("Command was: " + command);
-}
-
-std::tuple<int, bool, int, int> parseArguments(int count, char *argumentArray[], std::vector<std::string> options)
-{
-    int optionIndex = 0; // 0 = none / unknown, otherwise j+1 (matches options vector)
-    int release = 0;     // 0 = debug (default), 1 = release
-    bool threads = false;
-    int arch = 0;        // 0 = x64 (default), 1 = x32, 2 = arm64
-
-    bool anyFlagSeen = false;
-
-    for (int i = 1; i < count; ++i)
-    {
-        std::string arg = argumentArray[i];
-
-        // check main options
-        for (size_t j = 0; j < options.size(); ++j)
-        {
-            if (arg == options[j])
-            {
-                // keep first option seen (if you prefer last, remove the guard)
-                if (optionIndex == 0)
-                    optionIndex = static_cast<int>(j) + 1;
-            }
-        }
-
-        // release/debug flags
-        if (arg == "-r" || arg == "-release")
-        {
-            release = 1;
-            anyFlagSeen = true;
-            continue;
-        }
-        if (arg == "-d" || arg == "-debug")
-        {
-            release = 0;
-            anyFlagSeen = true;
-            continue;
-        }
-
-        // thread flag
-        if (arg == "-t" || arg == "-threads")
-        {
-            threads = true;
-            anyFlagSeen = true;
-            continue;
-        }
-
-        // arch flags
-        if (arg == "-x64")
-        {
-            arch = 0;
-            anyFlagSeen = true;
-            continue;
-        }
-        if (arg == "-x32")
-        {
-            arch = 1;
-            anyFlagSeen = true;
-            continue;
-        }
-        if (arg == "-arm64")
-        {
-            arch = 2;
-            anyFlagSeen = true;
-            continue;
-        }
-    }
-
-    // If flags were provided but the selected option is not build(4) or run(5), error out.
-    if (anyFlagSeen && optionIndex != 4 && optionIndex != 5)
-    {
-        std::cerr << color(Red, true) << "Release/arch flags are only valid with 'build' or 'run'." << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    return std::make_tuple(optionIndex, threads, release, arch);
 }
 
 void helpMenu()
@@ -323,7 +281,7 @@ void cleanProject(BuildFileLoader& file)
     std::cout << color(Green) << "Project cleaned" << color(Default) << std::endl;
 }
 
-void build(bool option, BuildFileLoader& file, bool thredding)
+void build(BuildOptions& opts, BuildFileLoader& file)
 {
     if (!file.isFound())
     {
@@ -332,7 +290,7 @@ void build(bool option, BuildFileLoader& file, bool thredding)
     }
 
     size_t maxThreads = 0;
-    if (thredding)
+    if (opts.threads)
     {
         unsigned int hc = std::thread::hardware_concurrency();
         if (hc == 0)
@@ -342,7 +300,7 @@ void build(bool option, BuildFileLoader& file, bool thredding)
         maxThreads = static_cast<size_t>(hc);
     }
 
-    std::string optionString = option ? "/release" : "/debug";
+    std::string optionString = opts.release ? "/release" : "/debug";
     std::string binPath = file.getBinPath() + optionString;
     std::string objPath = file.getObjPath() + optionString;
     std::string srcPath = file.getSrcPath();
@@ -351,8 +309,8 @@ void build(bool option, BuildFileLoader& file, bool thredding)
     std::string projectLib = binPath + "/" + file.getName();
     std::string projectType = file.getType();
 
-    std::vector<std::string> cflags = option ? file.getFlagsRelease() : file.getFlagsDebug();
-    std::vector<std::string> cdefs = option ? file.getDefsRelease() : file.getDefsDebug();
+    std::vector<std::string> cflags = opts.release ? file.getFlagsRelease() : file.getFlagsDebug();
+    std::vector<std::string> cdefs = opts.release ? file.getDefsRelease() : file.getDefsDebug();
 
     cdefs.push_back("-DVERSION=\\\"" + file.getVersion() + "\\\"");
 
@@ -489,45 +447,46 @@ void build(bool option, BuildFileLoader& file, bool thredding)
 
     auto buildStart = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Starting build " << projectType << " " << (option ? "relesse" : "debug") << "..." << std::endl;
+    std::cout << "Starting build " << projectType << " " << (opts.release ? "release" : "debug") << "..." << std::endl;
 
-    if (maxThreads > 0 && sourceFiles.size() > 0) // multi thread work
+    if (maxThreads > 0 && sourceFiles.size() > 0) 
     {
         std::vector<std::thread> workers;
         std::atomic<bool> failed(false);
+        std::atomic<size_t> nextFileIndex(0); // Shared counter for all threads
 
-        for (size_t i = 0; i < sourceFiles.size(); i++)
+        // Prepare shared data for threads
+        auto cc = file.getCompiler();
+        auto include = file.getIncludePath();
+
+        // Spawn a fixed pool of workers
+        for (size_t t = 0; t < maxThreads; ++t)
         {
-            // copy parameters for thread
-            std::string srcFile = sourceFiles[i];
-            std::string objFile = objectFiles[i];
-            auto cc_copy = file.getCompiler();
-            auto cflags_copy = cflags;
-            auto cdefs_copy = cdefs;
-            auto include_copy = file.getIncludePath();
-
-            workers.emplace_back([cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy, &failed]()
+            workers.emplace_back([&]() 
             {
-                if (failed.load())
-                    return;
+                while (true)
+                {
+                    // Atomically grab the next available file index
+                    size_t i = nextFileIndex.fetch_add(1);
+                    
+                    // Stop if we ran out of files or another thread failed
+                    if (i >= sourceFiles.size() || failed.load())
+                        break;
 
-                if (!compileObject(cc_copy, cflags_copy, cdefs_copy, objFile, srcFile, include_copy))
-                    failed.store(true);
+                    if (!compileObject(cc, cflags, cdefs, objectFiles[i], sourceFiles[i], include))
+                    {
+                        failed.store(true);
+                        break;
+                    }
+                }
             });
-
-            // throttle threads: when we reach max, join the oldest one
-            if (workers.size() >= maxThreads)
-            {
-                workers.front().join();
-                workers.erase(workers.begin());
-                if (failed.load())
-                    break;
-            }
         }
 
-        // join remaining workers
+        // Wait for all workers to complete their queues
         for (auto &t : workers)
+        {
             t.join();
+        }
 
         if (failed.load())
         {
@@ -584,6 +543,69 @@ void build(bool option, BuildFileLoader& file, bool thredding)
     }
 }
 
+BuildOptions parseArguments(int count, char* argumentArray[], const std::vector<std::string>& options)
+{
+    BuildOptions opts;
+
+    bool anyFlagSeen = false;
+
+    for (int i = 1; i < count; ++i)
+    {
+        std::string arg = argumentArray[i];
+
+        auto it = std::find(options.begin(), options.end(), arg);
+        if (it != options.end())
+        {   
+            opts.option = static_cast<ProgramOption>(std::distance(options.begin(), it));
+            continue;
+        }
+        if (arg == "-r" || arg == "-release")
+        {
+            opts.release = true;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-d" || arg == "-debug")
+        {
+            opts.release = false;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-t" || arg == "-threads")
+        {
+            opts.threads = true;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-x64")
+        {
+            opts.arch = 0;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-x32")
+        {
+            opts.arch = 1;
+            anyFlagSeen = true;
+            continue;
+        }
+        if (arg == "-arm64")
+        {
+            opts.arch = 2;
+            anyFlagSeen = true;
+            continue;
+        }
+    }
+
+    if (anyFlagSeen && opts.option != ProgramOption::Build && opts.option != ProgramOption::Run)
+    {
+        std::cerr << color(Red, true) << "Release/arch flags are only valid with 'build' or 'run'." << color(Default) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return opts;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2)
@@ -592,52 +614,42 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    std::vector<std::string> options = {"help", "version", "clean", "build", "run", "new", "class", "bump-minor", "bump-major"};
-
-    // record main thread id so workers can detect they're in a thread
     g_mainThreadId = std::this_thread::get_id();
 
-    int arch = 0; // 0 = x64, 1 = x32, 2 = arm64
-    int release = 0; // 0 = debug, 1 = release
-    bool threads = false;
-    int option = 0;
-
-    std::tie(option, threads, release, arch) = parseArguments(argc, argv, options);
-
-    //check for buid file and exit if not found
+    BuildOptions buildOpts = parseArguments(argc, argv, options);
     BuildFileLoader buildFile;
 
-    switch (option)
+    switch (buildOpts.option)
     {
-    case 1:
+    case ProgramOption::Help:
         helpMenu();
         break;
-    case 2:
+    case ProgramOption::Version:
         appVersion();
         break;
-    case 3:
+    case ProgramOption::Clean:
         cleanProject(buildFile);
         break;
-    case 4:
-        if (!release)
+    case ProgramOption::Build:
+        if (!buildOpts.release)
         {
             buildFile.bumpPatchVersion();
         }
-        build(release ? true : false, buildFile, threads);
+        build(buildOpts, buildFile);
         break;
-    case 5:
-        run(release ? true : false, buildFile);
+    case ProgramOption::Run:
+        run(buildOpts, buildFile);
         break;
-    case 6:
+    case ProgramOption::New:
         makeProject();
         break;
-    case 7:
+    case ProgramOption::Class:
         makeClass();
         break;
-    case 8:
+    case ProgramOption::BumpMinor:
         buildFile.bumpMinorVersion();
         break;
-    case 9:
+    case ProgramOption::BumpMajor:
         buildFile.bumpMajorVersion();
         break;
     default:
