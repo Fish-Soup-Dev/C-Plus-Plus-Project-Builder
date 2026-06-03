@@ -63,7 +63,7 @@ std::string BuildFileLoader::getType()
         exit(EXIT_FAILURE);
     }
 
-    if (type != "program" && type != "shared" && type != "static")
+    if (type != "program" && type != "shared" && type != "static" && type != "operating-system")
     {
         std::cerr << color(Red) << "build.toml type is incorrect" << color(Default) << std::endl;
         exit(EXIT_FAILURE);

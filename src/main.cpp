@@ -8,7 +8,6 @@
 #include <iomanip>
 #include <string>
 #include <unistd.h>
-#include <tuple>
 #include <thread>
 #include <atomic>
 
@@ -43,14 +42,14 @@ enum class ProgramOption
 };
 
 std::vector<std::string> options = {
-    "help", 
-    "version", 
-    "clean", 
-    "build", 
-    "run", 
-    "new", 
-    "class", 
-    "bump-minor", 
+    "help",
+    "version",
+    "clean",
+    "build",
+    "run",
+    "new",
+    "class",
+    "bump-minor",
     "bump-major"
 };
 
@@ -327,8 +326,10 @@ void build(BuildOptions& opts, BuildFileLoader& file)
             projectMain += ".exe";
         else if (projectType == "shared")
             projectMain += ".dll";
-        else
+        else if (projectType == "static")
             projectMain += ".lib";
+        else if (projectType == "operating-system")
+            projectMain += ".elf";
 
         projectLib += "dll.lib";
     #elif __linux__
@@ -336,8 +337,10 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
         if (projectType == "shared")
             projectMain += ".so";
-        else if (projectType != "program")
+        else if (projectType == "static")
             projectMain += ".a";
+        else if (projectType == "operating-system")
+            projectMain += ".elf";
 
         projectLib += "so.a";
     #endif
@@ -449,7 +452,7 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
     std::cout << "Starting build " << projectType << " " << (opts.release ? "release" : "debug") << "..." << std::endl;
 
-    if (maxThreads > 0 && sourceFiles.size() > 0) 
+    if (maxThreads > 0 && sourceFiles.size() > 0)
     {
         std::vector<std::thread> workers;
         std::atomic<bool> failed(false);
@@ -462,13 +465,13 @@ void build(BuildOptions& opts, BuildFileLoader& file)
         // Spawn a fixed pool of workers
         for (size_t t = 0; t < maxThreads; ++t)
         {
-            workers.emplace_back([&]() 
+            workers.emplace_back([&]()
             {
                 while (true)
                 {
                     // Atomically grab the next available file index
                     size_t i = nextFileIndex.fetch_add(1);
-                    
+
                     // Stop if we ran out of files or another thread failed
                     if (i >= sourceFiles.size() || failed.load())
                         break;
@@ -541,6 +544,13 @@ void build(BuildOptions& opts, BuildFileLoader& file)
     {
         std::cout << color(Gray) << "No new changes detected" << color(Default) << std::endl;
     }
+    else
+    {
+        if (!opts.release)
+        {
+            file.bumpPatchVersion();
+        }
+    }
 }
 
 BuildOptions parseArguments(int count, char* argumentArray[], const std::vector<std::string>& options)
@@ -555,7 +565,7 @@ BuildOptions parseArguments(int count, char* argumentArray[], const std::vector<
 
         auto it = std::find(options.begin(), options.end(), arg);
         if (it != options.end())
-        {   
+        {
             opts.option = static_cast<ProgramOption>(std::distance(options.begin(), it));
             continue;
         }
@@ -631,10 +641,6 @@ int main(int argc, char *argv[])
         cleanProject(buildFile);
         break;
     case ProgramOption::Build:
-        if (!buildOpts.release)
-        {
-            buildFile.bumpPatchVersion();
-        }
         build(buildOpts, buildFile);
         break;
     case ProgramOption::Run:

@@ -29,7 +29,7 @@ void makeProject()
 
     // --------------------------------
 
-    std::cout << "? Build Options (1) program, (2) shared, (3) static " << color(Blue) << "> " << color(Default);
+    std::cout << "? Build Options (1) program, (2) shared, (3) static, (4) operating-system " << color(Blue) << "> " << color(Default);
     std::string type;
     std::getline(std::cin, type);
 
@@ -151,6 +151,15 @@ void makeProject()
             cdefsD = "\"-DDEBUG\"";
         }
         break;
+    
+        case 4: // operating-system
+        {
+            std::ofstream mainFile(project_path + "/src/main.cpp");
+            mainFile << programTemplate();
+            mainFile.close();
+
+            typeName = "operating-system";
+        }
 
     default:
         break;
