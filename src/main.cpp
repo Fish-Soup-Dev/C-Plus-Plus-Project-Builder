@@ -11,7 +11,7 @@
 #include <thread>
 #include <atomic>
 
-#include "color.hpp"
+#include "utils.hpp"
 #include "templateGenerator.hpp"
 #include "buildFileLoader.hpp"
 
@@ -42,15 +42,15 @@ enum class ProgramOption
 };
 
 std::vector<std::string> options = {
-    "help",
-    "version",
-    "clean",
-    "build",
-    "run",
-    "new",
-    "class",
-    "bump-minor",
-    "bump-major"
+    "help", 
+    "version", 
+    "clean", 
+    "build", 
+    "run", 
+    "new", 
+    "class", 
+    "minor", 
+    "major"
 };
 
 struct BuildOptions
@@ -88,7 +88,7 @@ int compileObject
 )
 {
     bool isThread = std::this_thread::get_id() != g_mainThreadId;
-
+   
     std::string command = cc;
 
     for (const auto& cflag : cflags)
@@ -109,19 +109,14 @@ int compileObject
 
     std::chrono::duration<double> duration = end - start;
 
-    if (isThread)
-    {
-        std::cout << color(Gray) << "[Thread] ";
-    }
-
     if (result != EXIT_SUCCESS)
     {
-        std::cout << color(Red, true) << objectFile << " Failed." << color(Default) << std::endl;
+        utils::printLine(isThread ? "[Thread]" + objectFile + " Failed." : objectFile + " Failed.", utils::Red, true);
         DEBUG_PRINT("Command was: " + command);
         return false;
     }
 
-    std::cout << color(Gray) << objectFile << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
+    utils::printLine(isThread ? "[Thread]" + objectFile + " - " + std::to_string(duration.count()) + "s" : objectFile + " built in " + std::to_string(duration.count()) + "s", utils::Gray);
     DEBUG_PRINT("Command was: " + command);
     return true;
 }
@@ -171,12 +166,12 @@ int compileBinary
 
     if (result != EXIT_SUCCESS)
     {
-        std::cout << color(Red, true) << main << " Failed." << color(Default) << std::endl;
+        utils::printLine(main + " Failed.", utils::Red, true);
         DEBUG_PRINT("Command was: " + command);
         return false;
     }
 
-    std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
+    utils::printLine(main + " - " + std::to_string(duration.count()) + "s", utils::Gray);
     DEBUG_PRINT("Command was: " + command);
     return true;
 }
@@ -200,12 +195,12 @@ int archiveStatic(const std::vector<std::string> objFiles, const std::string mai
 
     if (result != EXIT_SUCCESS)
     {
-        std::cout << color(Red, true) << main << " Failed." << color(Default) << std::endl;
+        utils::printLine(main + " Failed.", utils::Red, true);
         DEBUG_PRINT("Command was: " + command);
         return false;
     }
 
-    std::cout << color(Gray) << main << " built in " << std::fixed << std::setprecision(3) << duration.count() << "s" << color(Default) << std::endl;
+    utils::printLine(main + " - " + std::to_string(duration.count()) + "s", utils::Gray);
     DEBUG_PRINT("Command was: " + command);
     return true;
 }
@@ -214,14 +209,12 @@ void run(BuildOptions& opts, BuildFileLoader& file)
 {
     if (!file.isFound())
     {
-        std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("No build.toml file found in current or parent directories.");
     }
 
     if (file.getType() != "program")
     {
-        std::cerr << color(Red) << "Error can only run programs" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Project type must be 'program' to run.");
     }
 
     std::string profile = opts.release ? "release" : "debug";
@@ -236,7 +229,7 @@ void run(BuildOptions& opts, BuildFileLoader& file)
 
     if (std::system(command.c_str()))
     {
-        std::cerr << color(Red, true) << "Program returned an error" << color(Default)  << std::endl;
+        throw std::runtime_error("Program returned an error");
     }
 
     DEBUG_PRINT("Command was: " + command);
@@ -244,14 +237,14 @@ void run(BuildOptions& opts, BuildFileLoader& file)
 
 void helpMenu()
 {
-    std::cout << "help - help menu" << std::endl;
-    std::cout << "version - app version" << std::endl;
-    std::cout << "clean - removes all temp folders and files in project" << std::endl;
-    std::cout << "build - builds project (if debug then bumps patch version)" << std::endl;
-    std::cout << "run - runs project" << std::endl;
-    std::cout << "new - makes files for a new project" << std::endl;
-    std::cout << "minor - bumps minor version" << std::endl;
-    std::cout << "major - bumps major version" << std::endl;
+    utils::printLine("help - help menu", utils::Default);
+    utils::printLine("version - app version", utils::Default);
+    utils::printLine("clean - removes all temp folders and files in project", utils::Default);
+    utils::printLine("build - builds project (if debug then bumps patch version)", utils::Default);
+    utils::printLine("run - runs project", utils::Default);
+    utils::printLine("new - makes files for a new project", utils::Default);
+    utils::printLine("minor - bumps minor version", utils::Default);
+    utils::printLine("major - bumps major version", utils::Default);
 }
 
 void appVersion()
@@ -267,25 +260,20 @@ void cleanProject(BuildFileLoader& file)
 {
     if (!file.isFound())
     {
-        std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
-        return;
+        throw std::runtime_error("No build.toml file found in current or parent directories.");
     }
 
     std::filesystem::remove_all(file.getBinPath());
-    std::cout << color(Gray) << "deleted " << file.getBinPath() << color(Default) << std::endl;
-
     std::filesystem::remove_all(file.getObjPath());
-    std::cout << color(Gray) << "deleted " << file.getObjPath() << color(Default) << std::endl;
 
-    std::cout << color(Green) << "Project cleaned" << color(Default) << std::endl;
+    utils::printLine("Removed " + file.getBinPath() + " and " + file.getObjPath(), utils::Green);
 }
 
 void build(BuildOptions& opts, BuildFileLoader& file)
 {
     if (!file.isFound())
     {
-        std::cerr << color(Red, true) << "No build.toml file found in current or parent directories." << color(Default) << std::endl;
-        return;
+        throw std::runtime_error("No build.toml file found in current or parent directories.");
     }
 
     size_t maxThreads = 0;
@@ -345,9 +333,11 @@ void build(BuildOptions& opts, BuildFileLoader& file)
         projectLib += "so.a";
     #endif
 
+    utils::printLine("Started build " + projectType + " " + (opts.release ? "release" : "debug") + "...", utils::Green);
+
     if (!std::filesystem::exists(binPath))
     {
-        std::cout << color(Gray) << binPath << " directory not found. Creating..." << color(Default) << std::endl;
+        utils::printLine("Creating " + binPath + " directory...", utils::Gray);
         std::filesystem::create_directories(binPath);
     }
 
@@ -356,7 +346,7 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
     if (!std::filesystem::exists(objPath))
     {
-        std::cout << color(Gray) << objPath << " directory not found. Creating..." << color(Default) << std::endl;
+        utils::printLine("Creating " + objPath + " directory...", utils::Gray);
         std::filesystem::create_directories(objPath);
     }
     else
@@ -378,8 +368,7 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
     if (!std::filesystem::exists(srcPath))
     {
-        std::cout << color(Red, true) << srcPath << " directory not found" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error(srcPath + " directory not found");
     }
 
     // load paths and edit times of src files and create list of objects to be created?
@@ -395,14 +384,13 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
     if (cppFiles.empty())
     {
-        std::cout << color(Red, true) << "No C++ source files found" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("No C++ source files found");
     }
 
     // load lib files
     if (!std::filesystem::exists(libPath))
     {
-        std::cout << color(Gray) << libPath << " directory not found. Creating..." << color(Default) << std::endl;
+        utils::printLine("Creating " + libPath + " directory...", utils::Gray);
         std::filesystem::create_directories(libPath);
     }
 
@@ -450,8 +438,6 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
     auto buildStart = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Starting build " << projectType << " " << (opts.release ? "release" : "debug") << "..." << std::endl;
-
     if (maxThreads > 0 && sourceFiles.size() > 0)
     {
         std::vector<std::thread> workers;
@@ -493,8 +479,7 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
         if (failed.load())
         {
-            std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
-            exit(EXIT_FAILURE);
+            throw std::runtime_error("Compilation failed in one of the threads.");
         }
 
         anyFilesBuilt = true;
@@ -505,8 +490,7 @@ void build(BuildOptions& opts, BuildFileLoader& file)
         {
             if (!compileObject(file.getCompiler(), cflags, cdefs, objectFiles[i], sourceFiles[i], file.getIncludePath()))
             {
-                std::cout << color(Red, true) << "Compile Object Error" << color(Default) << std::endl;
-                exit(EXIT_FAILURE);
+                throw std::runtime_error("Failed to compile object file: " + sourceFiles[i]);
             }
         }
 
@@ -520,16 +504,14 @@ void build(BuildOptions& opts, BuildFileLoader& file)
         {
             if (!archiveStatic(objFiles, projectMain))
             {
-                std::cout << color(Red, true) << "Error" << color(Default) << std::endl;
-                exit(EXIT_FAILURE);
+                throw std::runtime_error("Failed to archive static library");
             }
         }
         else
         {
             if (!compileBinary(file.getCompiler(), cflags, cdefs, objFiles, libFiles, libList, projectMain, file.getIncludePath(), libPath))
             {
-                std::cout << color(Red, true) << "Compile Binary Error" << color(Default) << std::endl;
-                exit(EXIT_FAILURE);
+                throw std::runtime_error("Failed to compile binary");
             }
         }
 
@@ -537,12 +519,12 @@ void build(BuildOptions& opts, BuildFileLoader& file)
 
         auto buildEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> buildDuration = buildEnd - buildStart;
-        std::cout << color(Green) << projectMain << " done in " << buildDuration.count() << "s" << color(Default) << std::endl;
+        utils::printLine("Created " + projectMain + " in " + std::to_string(buildDuration.count()) + "s", utils::Green);
     }
 
     if (!anyFilesBuilt)
     {
-        std::cout << color(Gray) << "No new changes detected" << color(Default) << std::endl;
+        utils::printLine("No new changes detected", utils::Gray);
     }
     else
     {
@@ -609,57 +591,88 @@ BuildOptions parseArguments(int count, char* argumentArray[], const std::vector<
 
     if (anyFlagSeen && opts.option != ProgramOption::Build && opts.option != ProgramOption::Run)
     {
-        std::cerr << color(Red, true) << "Release/arch flags are only valid with 'build' or 'run'." << color(Default) << std::endl;
+        utils::printError("Release/arch flags are only valid with 'build' or 'run'.", utils::Red, true);
         exit(EXIT_FAILURE);
     }
 
     return opts;
 }
 
-int main(int argc, char *argv[])
+class Application
 {
-    if (argc < 2)
+public:
+    Application(int argc, char* argv[]) : argc(argc), argv(argv)
     {
-        std::cerr << color(Red, true) << "No option given. Try help for how to use" << color(Default) << std::endl;
-        return EXIT_FAILURE;
+        if (argc < 2)
+        {
+            throw std::runtime_error("No option provided. Use 'help' for usage.");
+        }
     }
 
-    g_mainThreadId = std::this_thread::get_id();
-
-    BuildOptions buildOpts = parseArguments(argc, argv, options);
-    BuildFileLoader buildFile;
-
-    switch (buildOpts.option)
+    void execute()
     {
-    case ProgramOption::Help:
-        helpMenu();
-        break;
-    case ProgramOption::Version:
-        appVersion();
-        break;
-    case ProgramOption::Clean:
-        cleanProject(buildFile);
-        break;
-    case ProgramOption::Build:
-        build(buildOpts, buildFile);
-        break;
-    case ProgramOption::Run:
-        run(buildOpts, buildFile);
-        break;
-    case ProgramOption::New:
-        makeProject();
-        break;
-    case ProgramOption::Class:
-        makeClass();
-        break;
-    case ProgramOption::BumpMinor:
-        buildFile.bumpMinorVersion();
-        break;
-    case ProgramOption::BumpMajor:
-        buildFile.bumpMajorVersion();
-        break;
-    default:
-        std::cerr << color(Red, true) << "Unknown option. Try (help)" << color(Default) << std::endl;
+        g_mainThreadId = std::this_thread::get_id();
+
+        BuildOptions buildOpts = parseArguments(argc, argv, options);
+        BuildFileLoader buildFile;
+
+        switch (buildOpts.option)
+        {
+        case ProgramOption::Help:
+            helpMenu();
+            break;
+        case ProgramOption::Version:
+            appVersion();
+            break;
+        case ProgramOption::Clean:
+            cleanProject(buildFile);
+            break;
+        case ProgramOption::Build:
+            if (!buildOpts.release)
+            {
+                buildFile.bumpPatchVersion();
+                utils::printLine("Bumped patch version " + buildFile.getVersion(), utils::Gray);
+            }
+            build(buildOpts, buildFile);
+            break;
+        case ProgramOption::Run:
+            run(buildOpts, buildFile);
+            break;
+        case ProgramOption::New:
+            makeProject();
+            break;
+        case ProgramOption::Class:
+            makeClass();
+            break;
+        case ProgramOption::BumpMinor:
+            buildFile.bumpMinorVersion();
+            utils::printLine("Bumped minor version " + buildFile.getVersion(), utils::Green);
+            break;
+        case ProgramOption::BumpMajor:
+            buildFile.bumpMajorVersion();
+            utils::printLine("Bumped major version " + buildFile.getVersion(), utils::Green);
+            break;
+        default:
+            utils::printLine("Unknown option. Try help for how to use", utils::Red, true);
+            break;
+        }
+    }
+
+private:
+    int argc;
+    char** argv;
+};
+
+int main(int argc, char *argv[])
+{
+    try
+    {
+        Application app(argc, argv);
+        app.execute();
+    }
+    catch (const std::exception& e)
+    {
+        utils::printError("Error: " + std::string(e.what()), utils::Red, true);
         return EXIT_FAILURE;
     }
 

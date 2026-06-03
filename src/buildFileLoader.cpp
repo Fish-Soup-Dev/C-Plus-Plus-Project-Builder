@@ -1,6 +1,6 @@
 #include "buildFileLoader.hpp"
 
-#include "color.hpp"
+#include "utils.hpp"
 
 #include <iostream>
 #include <filesystem>
@@ -46,8 +46,7 @@ std::string BuildFileLoader::getName()
 
     if (name.empty())
     {
-        std::cerr << color(Red) << "build.toml name value missing" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("build.toml project name value missing");
     }
 
     return name;
@@ -59,14 +58,12 @@ std::string BuildFileLoader::getType()
 
     if (type.empty())
     {
-        std::cerr << color(Red) << "build.toml type value missing" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("build.toml type value missing");
     }
 
     if (type != "program" && type != "shared" && type != "static" && type != "operating-system")
     {
-        std::cerr << color(Red) << "build.toml type is incorrect" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("build.toml type is incorrect");
     }
 
     return type;
@@ -78,8 +75,7 @@ std::string BuildFileLoader::getCompiler()
 
     if (cc.empty())
     {
-        std::cerr << color(Red) << "build.toml compiler value missing" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("build.toml compiler value missing");
     }
 
     return cc;
@@ -158,8 +154,7 @@ void BuildFileLoader::bumpPatchVersion()
 
     if (firstDot == std::string::npos || secondDot == std::string::npos)
     {
-        std::cerr << color(Red) << "Version format is incorrect" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Version format is incorrect");
     }
 
     int major = std::stoi(version.substr(0, firstDot));
@@ -189,8 +184,7 @@ void BuildFileLoader::bumpMinorVersion()
 
     if (firstDot == std::string::npos || secondDot == std::string::npos)
     {
-        std::cerr << color(Red) << "Version format is incorrect" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Version format is incorrect");
     }
 
     int major = std::stoi(version.substr(0, firstDot));
@@ -221,8 +215,7 @@ void BuildFileLoader::bumpMajorVersion()
 
     if (firstDot == std::string::npos || secondDot == std::string::npos)
     {
-        std::cerr << color(Red) << "Version format is incorrect" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Version format is incorrect");
     }
 
     int major = std::stoi(version.substr(0, firstDot));

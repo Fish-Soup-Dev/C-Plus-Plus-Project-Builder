@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <fstream>
 
-#include "color.hpp"
+#include "utils.hpp"
 
 #include "templates/buildfileTemplate.hpp"
 #include "templates/programTemplate.hpp"
@@ -17,38 +17,35 @@
 void makeProject()
 {
     // --------------------------------
-    std::cout << "? Project name " << color(Blue) << "> " << color(Default);
+    utils::printLine("? Project name ", utils::Gray);
     std::string name;
     std::getline(std::cin, name);
 
     if (name.empty())
     {
-        std::cout << color(Red) << "Error no name given" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Error no name given");
     }
 
     // --------------------------------
 
-    std::cout << "? Build Options (1) program, (2) shared, (3) static, (4) operating-system " << color(Blue) << "> " << color(Default);
+    utils::printLine("? Build Options (1) program, (2) shared, (3) static , (4) operating-system", utils::Gray);
     std::string type;
     std::getline(std::cin, type);
 
     if (type.empty())
     {
-        std::cout << color(Red) << "Error no type given" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Error no type given");
     }
 
     // --------------------------------
 
-    std::cout << "? C++ Version [98, 03, 11, 14, 17, 20, 23, 26] " << color(Blue) << "> " << color(Default);
+    utils::printLine("? C++ Version [98, 03, 11, 14, 17, 20, 23, 26] ", utils::Gray);
     std::string version;
     std::getline(std::cin, version);
 
     if (version.empty())
     {
-        std::cout << color(Red) << "Error no version given" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Error no version given");
     }
 
     // --------------------------------
@@ -85,7 +82,7 @@ void makeProject()
 
     std::string project_path = "./" + name;
 
-    std::cout << color(Green) << "Makeing template at " << project_path << std::endl;
+    utils::printLine("Making template at " + project_path, utils::Blue);
 
     std::filesystem::create_directory(project_path);
     std::filesystem::create_directory(project_path + "/src");
@@ -169,20 +166,19 @@ void makeProject()
     buildFile << buildfile_template(name, typeName, cflagsR, cflagsD, cdefsR, cdefsD);
     buildFile.close();
 
-    std::cout << color(Green) << "Done." << color(Default) << std::endl;
+    utils::printLine("Done.", utils::Green);
 }
 
 void makeClass()
 {
     // --------------------------------
-    std::cout << "? Class name " << color(Blue) << "> " << color(Default);
+    utils::printLine("? Class name ", utils::Gray);
     std::string name;
     std::getline(std::cin, name);
 
     if (name.empty())
     {
-        std::cout << color(Red) << "Error no name given" << color(Default) << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Error no name given");
     }
 
     std::string nameupper = name;
@@ -196,5 +192,5 @@ void makeClass()
     classFile << classTemplate(name);
     classFile.close();
 
-    std::cout << color(Green) << "Done." << color(Default) << std::endl;
+    utils::printLine("Done.", utils::Green);
 }
