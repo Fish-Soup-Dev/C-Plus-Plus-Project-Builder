@@ -531,6 +531,7 @@ void build(BuildOptions& opts, BuildFileLoader& file)
         if (!opts.release)
         {
             file.bumpPatchVersion();
+            utils::printLine("Bumped patch version " + file.getVersion(), utils::Gray);
         }
     }
 }
@@ -628,11 +629,6 @@ public:
             cleanProject(buildFile);
             break;
         case ProgramOption::Build:
-            if (!buildOpts.release)
-            {
-                buildFile.bumpPatchVersion();
-                utils::printLine("Bumped patch version " + buildFile.getVersion(), utils::Gray);
-            }
             build(buildOpts, buildFile);
             break;
         case ProgramOption::Run:
